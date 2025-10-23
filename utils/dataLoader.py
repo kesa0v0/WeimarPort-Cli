@@ -25,17 +25,27 @@ class DataLoader:
         self.indent = indent
 
     def load(self, path: str, ignore_unknown: bool = True) -> List[Any]:
-        with open(path, "r", encoding="utf-8") as f:
-            payload = json.load(f)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to load JSON from {path}: {e}")
+            raise
+
         result: List[Any] = []
         for item in payload:
             typ = item.get("type")
             data = item.get("data", {})
             cls = self.type_map.get(typ)
             if cls:
-                obj = cls.from_dict(data)
-                result.append(obj)
-                logger.debug(f"Loaded object: {obj}")
+                try:
+                    obj = cls.from_dict(data)
+                    result.append(obj)
+                    logger.debug(f"Loaded object: {obj}")
+                except Exception as e:
+                    logger.error(f"Failed to parse object of type {typ} from {path}: {e}")
+                    raise
             elif not ignore_unknown:
+                logger.error(f"Unknown type: {typ!r} in {path}")
                 raise ValueError(f"Unknown type: {typ!r}")
         return result
