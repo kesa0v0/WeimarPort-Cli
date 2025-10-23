@@ -17,6 +17,6 @@ class GameManager:
         self.cli.tag_print("정적 데이터 로드 중...", "INIT")
 
         party_data = self.loader.load("data/parties.json")
-        # city_data = loader.load("data/cities.json")
-        # unit_data = loader.load("data/units.json")
+        city_data = self.loader.load("data/cities.json")
+        # unit_data = self.loader.load("data/units.json")
     

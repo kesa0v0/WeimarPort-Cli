@@ -92,6 +92,7 @@ class PartyCardData(CardData):
 class CityData:
     id: str
     max_party_bases: int
+    city_dice_roll: int
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

@@ -27,6 +27,7 @@ class DataLoader:
     def load(self, path: str, ignore_unknown: bool = True) -> List[Any]:
         try:
             with open(path, "r", encoding="utf-8") as f:
+                logging.debug(f"{path} opened successfully.")
                 payload = json.load(f)
         except json.JSONDecodeError as e:
             logger.error(f"Failed to load JSON from {path}: {e}")

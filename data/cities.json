@@ -1,0 +1,90 @@
+[
+    {
+        "type": "CityData",
+        "data": {
+            "id": "koenigsberg",
+            "max_party_bases": 2,
+            "city_dice_roll": 2
+        }
+    },
+    {
+        "type": "CityData",
+        "data": {
+            "id": "stuttgart",
+            "max_party_bases": 2,
+            "city_dice_roll": 3
+        }
+    },
+    {
+        "type": "CityData",
+        "data": {
+            "id": "frankfurt",
+            "max_party_bases": 2,
+            "city_dice_roll": 4
+        }
+    },
+    {
+        "type": "CityData",
+        "data": {
+            "id": "koeln",
+            "max_party_bases": 3,
+            "city_dice_roll": 5
+        }
+    },
+    {
+        "type": "CityData",
+        "data": {
+            "id": "hamburg",
+            "max_party_bases": 4,
+            "city_dice_roll": 6
+        }
+    },
+    {
+        "type": "CityData",
+        "data": {
+            "id": "berlin",
+            "max_party_bases": 5,
+            "city_dice_roll": 7
+        }
+    },
+    {
+        "type": "CityData",
+        "data": {
+            "id": "essen",
+            "max_party_bases": 3,
+            "city_dice_roll": 8
+        }
+    },
+    {
+        "type": "CityData",
+        "data": {
+            "id": "munich",
+            "max_party_bases": 3,
+            "city_dice_roll": 9
+        }
+    },
+    {
+        "type": "CityData",
+        "data": {
+            "id": "breslau",
+            "max_party_bases": 3,
+            "city_dice_roll": 10
+        }
+    },
+    {
+        "type": "CityData",
+        "data": {
+            "id": "leipzig",
+            "max_party_bases": 3,
+            "city_dice_roll": 11
+        }
+    },
+    {
+        "type": "CityData",
+        "data": {
+            "id": "rostock",
+            "max_party_bases": 2,
+            "city_dice_roll": 12
+        }
+    }
+]
