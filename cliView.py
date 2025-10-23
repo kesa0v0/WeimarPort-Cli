@@ -1,5 +1,9 @@
+import logging
+
+
 from colorama import init as init_colorama, Fore, Style
 
+logger = logging.getLogger(__name__)
 init_colorama(autoreset=True)
 
 class CliView:

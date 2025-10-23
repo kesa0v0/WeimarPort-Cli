@@ -1,14 +1,18 @@
 [
     {
-        "id": "KPD"
+        "id": "KPD",
+        "party_color": "#ffc0cb"
     },
     {
-        "id": "SPD"
+        "id": "SPD",
+        "party_color": "#ff0000"
     },
     {
-        "id": "DNVP"
+        "id": "DNVP",
+        "party_color": "#ffffff"
     },
     {
-        "id": "ZENTRUM"
+        "id": "ZENTRUM",
+        "party_color": "#0000ff"
     }
 ]

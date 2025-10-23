@@ -1,8 +1,13 @@
 from dataclasses import dataclass, asdict
 from typing import Dict, Any
 from enum import Enum
+import logging
 
 from enums import Faction, PartyID
+
+
+logger = logging.getLogger(__name__)
+
 
 def _enum_to_value(e: Enum | Any) -> Any:
     """Enum이면 value 반환, 아니면 그대로 반환"""

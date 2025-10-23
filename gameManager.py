@@ -1,6 +1,12 @@
+import logging
+
 
 from cliView import CliView
 from utils.dataLoader import DataLoader
+
+
+logger = logging.getLogger(__name__)
+
 
 class GameManager:
     def __init__(self):

@@ -1,10 +1,11 @@
-# ...existing code...
 import json
-import os
+import logging
 from typing import Any, Dict, Type, Optional, List, Protocol
-import config
 
 from datas import PartyData, CityData, UnitData
+
+
+logger = logging.getLogger(__name__)
 
 class ToDictProto(Protocol):
     def to_dict(self) -> Dict[str, Any]:
@@ -34,8 +35,7 @@ class DataLoader:
             if cls:
                 obj = cls.from_dict(data)
                 result.append(obj)
-                if config.DEBUG:  # Log each loaded object if DEBUG is True
-                    print(f"[DEBUG] Loaded object: {obj}")
+                logger.debug(f"Loaded object: {obj}")
             elif not ignore_unknown:
                 raise ValueError(f"Unknown type: {typ!r}")
         return result
