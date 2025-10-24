@@ -14,11 +14,11 @@ def init_logger():
     def cleanup_old_logs():
         log_files = [f for f in os.listdir(LOG_DIR) if f.endswith(".log") and f != "latest.log"]
         log_files.sort()  # 파일 이름 기준 정렬 (날짜 순서)
-        if len(log_files) > 5:  # 최대 5개까지만 유지
+        if len(log_files) >= 5:  # 최대 5개까지만 유지
             for old_file in log_files[:len(log_files) - 4]:
                 os.remove(os.path.join(LOG_DIR, old_file))
 
-    cleanup_old_logs()  # 초기화 시 오래된 로그 정리
+    cleanup_old_logs()
 
     # 로그 레벨별 색상 정의
     LOG_COLORS = {
@@ -47,7 +47,7 @@ def init_logger():
 
     # 파일 핸들러 (latest.log)
     latest_log_path = os.path.join(LOG_DIR, "latest.log")
-    file_handler = RotatingFileHandler(latest_log_path, maxBytes=5 * 1024 * 1024, backupCount=0)  # 백업 없음
+    file_handler = logging.FileHandler(latest_log_path, mode="w", encoding="utf-8")
     file_handler.setFormatter(logging.Formatter(
         "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%H:%M:%S"
