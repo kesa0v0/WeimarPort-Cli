@@ -1,6 +1,7 @@
 import logging
 from colorama import init as init_colorama, Fore, Style
 
+from enums import PartyID
 from eventBus import EventBus
 from gameEvents import UI_SHOW_STATUS
 
@@ -13,6 +14,16 @@ class CliView:
         self.bus.subscribe(UI_SHOW_STATUS, self.on_show_status)
     
     def localize(self, text):
+        temp_dict = {
+            PartyID.KPD: "KPD",
+            PartyID.SPD: "SPD",
+            PartyID.ZENTRUM: "Zentrum",
+            PartyID.DNVP: "DNVP",
+        }
+
+        if text in temp_dict:
+            return temp_dict[text]
+
         return text  # Placeholder for localization logic
 
     def on_show_status(self, data):
@@ -22,11 +33,11 @@ class CliView:
         status_message += Fore.CYAN + f"Turn: {data['turn']}\n"
 
         status_message += Fore.YELLOW + "Parties:\n"
-        status_message += Fore.WHITE + "Party Name, Victory Points, Held Timeline Cards Count, Held Party Cards Count\n"
         for party_id, party_data in data['parties'].items():
             status_message += Fore.YELLOW + f" - {self.localize(party_id)}: {party_data.current_vp} VP, "
             status_message += Fore.YELLOW + f"{len(party_data.hand_timeline)} Timeline Cards, "
             status_message += Fore.YELLOW + f"{len(party_data.hand_party)} Party Cards\n"
+            status_message += Fore.WHITE + f"  ↳ Units in Supply: {', '.join(party_data.units_in_supply) if party_data.units_in_supply else 'None'}\n"
             
 
         status_message += Fore.MAGENTA + "Cities:\n"

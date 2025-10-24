@@ -33,6 +33,8 @@ class PartyState:
 
         self.current_vp: int = 0
         self.reserved_ap: int = 0
+
+        self.units_in_supply: list[str] = []  # List of unit IDs
         
         self.hand_timeline: list[str] = []
         self.hand_party: list[str] = []
