@@ -62,6 +62,9 @@ class GameModel:
         self.threats_on_board: dict[str, ThreatOnBoard] = {}
         self.units_on_board: dict[str, UnitOnBoard] = {}
         self.cities_state: dict[str, CityState] = {}
+
+    def get_current_player(self) -> PartyID:
+        return self.turn
         
     def setup_game_from_scenario(self, scenario_data: dict[str, Any]):
         pass

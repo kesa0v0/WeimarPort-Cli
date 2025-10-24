@@ -31,25 +31,17 @@ class GameManager:
 
     def start_game(self):
         logger.info("Setting up game...")
-        self.model = GameModel(self.bus, knowledge=self.game_knowledge)
+        model = GameModel(self.bus, knowledge=self.game_knowledge)
         # scenario_data = self.loader.load(scenario_file)
         # self.model.setup_game_from_scenario(scenario_data)
 
-        self.view = CliView(self.bus)
+        view = CliView(self.bus)
         
-        self.presenter = GamePresenter(self.bus, self.model)
+        presenter = GamePresenter(self.bus, model)
 
-        logger.info("Entering main game loop...")
-        self.main_loop()
+        logger.info("Game setup complete.")
+
+        return model, view, presenter
 
 
-    def main_loop(self):
-        while True:
-            user_input = self.view.get_input("Enter command (or 'quit' to exit): ")
-            if user_input.lower() == 'quit':
-                logger.info("Exiting game.")
-                break
-            elif user_input.lower() == 'status':
-                self.presenter.handle_show_status()
-            # Here you would handle other commands and game logic
             
