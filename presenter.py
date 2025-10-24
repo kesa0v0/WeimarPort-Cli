@@ -1,8 +1,8 @@
 
 
 from typing import Any
-from eventBus import EventBus
-import gameEvents
+from event_bus import EventBus
+import game_events
 from models import GameModel
 
 
@@ -13,4 +13,4 @@ class GamePresenter:
 
     def handle_show_status(self):
         data = self.model.get_status_data()
-        self.bus.publish(gameEvents.UI_SHOW_STATUS, data)
+        self.bus.publish(game_events.UI_SHOW_STATUS, data)

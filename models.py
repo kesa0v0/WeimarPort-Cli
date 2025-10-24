@@ -4,7 +4,7 @@ from typing import Any
 
 from enums import PartyID
 from datas import CityData
-from eventBus import EventBus
+from event_bus import EventBus
 
 class CityState:
     def __init__(self, city: CityData):

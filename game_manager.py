@@ -2,11 +2,11 @@ import logging
 
 
 from presenter import GamePresenter
-from utils.dataLoader import DataLoader
+from utils.data_loader import DataLoader
 from datas import GameKnowledge
 from models import GameModel
-from cliView import CliView
-from eventBus import EventBus
+from cli_view import CliView
+from event_bus import EventBus
 
 
 logger = logging.getLogger(__name__) 

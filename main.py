@@ -1,7 +1,7 @@
 from colorama import init as init_colorama
 import logger
 
-from gameManager import GameManager
+from game_manager import GameManager
 
 
 # colorama 초기화

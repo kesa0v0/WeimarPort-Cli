@@ -2,8 +2,8 @@ import logging
 from colorama import init as init_colorama, Fore, Style
 
 from enums import PartyID
-from eventBus import EventBus
-from gameEvents import UI_SHOW_STATUS
+from event_bus import EventBus
+from game_events import UI_SHOW_STATUS
 
 logger = logging.getLogger(__name__)
 init_colorama(autoreset=True)
