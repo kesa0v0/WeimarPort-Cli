@@ -1,17 +1,39 @@
 import logging
-
-
 from colorama import init as init_colorama, Fore, Style
+
+from eventBus import EventBus
+from gameEvents import UI_SHOW_STATUS
 
 logger = logging.getLogger(__name__)
 init_colorama(autoreset=True)
 
 class CliView:
-    def tag_print(self, message, tag, tag_color=Fore.WHITE):
-        print(f"{tag_color}[{tag}]{Style.RESET_ALL} {message}")
+    def __init__(self, bus: EventBus):
+        self.bus = bus
+        self.bus.subscribe(UI_SHOW_STATUS, self.on_show_status)
+    
+    def localize(self, text):
+        return text  # Placeholder for localization logic
 
-    def colorprint(self, message, color=Fore.WHITE):
-        print(f"{color}{message}{Style.RESET_ALL}")
+    def on_show_status(self, data):
+        status_message = Fore.GREEN + Style.BRIGHT + "=== Game Status ===\n"
+        
+        status_message += Fore.CYAN + f"Round: {data['round']}\n"
+        status_message += Fore.CYAN + f"Turn: {data['turn']}\n"
+
+        status_message += Fore.YELLOW + "Parties:\n"
+        status_message += Fore.WHITE + "Party Name, Victory Points, Held Timeline Cards Count, Held Party Cards Count\n"
+        for party_id, party_data in data['parties'].items():
+            status_message += Fore.YELLOW + f" - {self.localize(party_id)}: {party_data.current_vp} VP, "
+            status_message += Fore.YELLOW + f"{len(party_data.hand_timeline)} Timeline Cards, "
+            status_message += Fore.YELLOW + f"{len(party_data.hand_party)} Party Cards\n"
+            
+
+        status_message += Fore.MAGENTA + "Cities:\n"
+        for city_id, city_data in data['cities'].items():
+            status_message += Fore.MAGENTA + f" - {self.localize(city_id)}: {city_data['status']}\n"
+        status_message += Fore.RED + "===================\n"
+        self.print(status_message)
 
     def print(self, message):
         print(message)

@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Any, Dict, Type, Optional, List, Protocol
 
-from datas import PartyData, CityData, UnitData
+from datas import PartyData, CityData, ThreatData, UnitData
 
 
 logger = logging.getLogger(__name__)
@@ -15,6 +15,7 @@ DEFAULT_TYPE_MAP: Dict[str, Type[Any]] = {
     "PartyData": PartyData,
     "CityData": CityData,
     "UnitData": UnitData,
+    "ThreatData": ThreatData
 }
 
 class DataLoader:
@@ -24,7 +25,7 @@ class DataLoader:
             self.type_map.update(type_map)
         self.indent = indent
 
-    def load(self, path: str, ignore_unknown: bool = True) -> List[Any]:
+    def load(self, path: str, ignore_unknown: bool = True) -> Dict[str, Any]:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 logging.debug(f"{path} opened successfully.")
@@ -33,7 +34,7 @@ class DataLoader:
             logger.error(f"Failed to load JSON from {path}: {e}")
             raise
 
-        result: List[Any] = []
+        result: Dict[str, Any] = {}
         for item in payload:
             try:
                 # `typ`이 없거나 잘못된 경우 처리
@@ -61,7 +62,13 @@ class DataLoader:
                 # 객체 생성 시 발생하는 오류 처리
                 try:
                     obj = cls.from_dict(data)
-                    result.append(obj)
+                    obj_id = getattr(obj, "id", None)
+                    if not obj_id:
+                        logger.error(f"Object of type {typ} missing 'id': {data}")
+                        continue
+                    if obj_id in result:
+                        logger.warning(f"Duplicate id '{obj_id}' found in {path}")
+                    result[obj_id] = obj
                     logger.debug(f"Loaded object: {obj}")
                 except Exception as e:
                     logger.error(f"Failed to parse object of type {typ} with data {data} from {path}: {e}")

@@ -1,0 +1,74 @@
+[
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "poverty"
+        }
+    },
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "prosperity"
+        }
+    },
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "unrest"
+        }
+    },
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "inflation"
+        }
+    },
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "blockade"
+        }
+    },
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "violent_peace"
+        }
+    },
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "instable_state"
+        }
+    },
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "minority_cabinet"
+        }
+    },
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "black_friday"
+        }
+    },
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "regime"
+        }
+    },
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "council"
+        }
+    },
+    {
+        "type": "ThreatData",
+        "data": {
+            "id": "uprising"
+        }
+    }
+]

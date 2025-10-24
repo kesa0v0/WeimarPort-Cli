@@ -29,6 +29,12 @@ def _enum_from_value(enum_cls, v: Any):
         except Exception:
             raise ValueError(f"Cannot convert {v!r} to {enum_cls}")
 
+@dataclass
+class GameKnowledge:
+    party: dict[str, Any]
+    cities: dict[str, Any]
+    units: dict[str, Any]
+    threat: dict[str, Any]
 
 @dataclass()
 class PartyData:
@@ -133,3 +139,14 @@ class UnitData:
         data = dict(d)
         data["faction"] = _enum_from_value(Faction, data.get("faction"))
         return cls(**data)
+    
+@dataclass
+class ThreatData:
+    id: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "ThreatData":
+        return cls(**d)

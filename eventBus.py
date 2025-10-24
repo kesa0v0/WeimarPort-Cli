@@ -5,15 +5,16 @@ logger = logging.getLogger(__name__)
 
 
 class EventBus:
-    def __init__(self):
-        self.listeners = {}
+    listeners = {}
 
     def subscribe(self, event_type, listener):
-        if event_type not in self.listeners:
-            self.listeners[event_type] = []
-        self.listeners[event_type].append(listener)
+        if event_type not in EventBus.listeners:
+            EventBus.listeners[event_type] = []
+        EventBus.listeners[event_type].append(listener)
+        logger.debug(f"Listener subscribed to event '{event_type}'")
 
     def publish(self, event_type, data):
-        if event_type in self.listeners:
-            for listener in self.listeners[event_type]:
+        if event_type in EventBus.listeners:
+            for listener in EventBus.listeners[event_type]:
                 listener(data)
+            logger.debug(f"Event '{event_type}' published to {len(EventBus.listeners[event_type])} listeners")
