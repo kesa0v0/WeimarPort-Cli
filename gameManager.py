@@ -5,7 +5,7 @@ from cliView import CliView
 from utils.dataLoader import DataLoader
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) 
 
 
 class GameManager:
@@ -13,10 +13,10 @@ class GameManager:
         self.cli = CliView()
         self.loader = DataLoader()
 
-        self.cli.tag_print("WeimarPort-Cli 시작", "INFO")
-        self.cli.tag_print("정적 데이터 로드 중...", "INIT")
+        logger.info("WeimarPort-Cli 시작")
+        logger.info("정적 데이터 로드 중...")
 
         party_data = self.loader.load("data/parties.json")
         city_data = self.loader.load("data/cities.json")
-        # unit_data = self.loader.load("data/units.json")
+        unit_data = self.loader.load("data/units.json")
     

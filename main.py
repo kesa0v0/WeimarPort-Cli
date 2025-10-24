@@ -1,14 +1,13 @@
-import logging
+from colorama import init as init_colorama
+import logger
 
 from gameManager import GameManager
 
 
-logging.basicConfig(
-    level=logging.DEBUG,  # DEBUG, INFO, WARNING, ERROR, CRITICAL 중 선택
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-
+# colorama 초기화
+init_colorama(autoreset=True)
+# 로거 초기화
+logger.init_logger()
 
 if __name__ == "__main__":
     gameManager = GameManager()

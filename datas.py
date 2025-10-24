@@ -89,6 +89,22 @@ class PartyCardData(CardData):
 
 
 @dataclass
+class TimelineCardData(CardData):
+    era: list[int]
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["era"] = self.era
+        return d
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "TimelineCardData":
+        data = dict(d)
+        data["era"] = data.get("era", [])
+        return cls(**data)
+
+
+@dataclass
 class CityData:
     id: str
     max_party_bases: int

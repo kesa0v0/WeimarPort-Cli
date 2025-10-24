@@ -35,18 +35,40 @@ class DataLoader:
 
         result: List[Any] = []
         for item in payload:
-            typ = item.get("type")
-            data = item.get("data", {})
-            cls = self.type_map.get(typ)
-            if cls:
+            try:
+                # `typ`이 없거나 잘못된 경우 처리
+                typ = item.get("type")
+                if not typ:
+                    logger.error(f"Missing 'type' field in item: {item}")
+                    continue
+
+                # `data`가 없거나 잘못된 경우 처리
+                data = item.get("data", {})
+                if not isinstance(data, dict):
+                    logger.error(f"Invalid 'data' field in item: {item}")
+                    continue
+
+                # `cls`가 type_map에 없는 경우 처리
+                cls = self.type_map.get(typ)
+                if not cls:
+                    if not ignore_unknown:
+                        logger.error(f"Unknown type: {typ!r} in {path}")
+                        raise ValueError(f"Unknown type: {typ!r}")
+                    else:
+                        logger.warning(f"Ignored unknown type: {typ!r} in {path}")
+                        continue
+
+                # 객체 생성 시 발생하는 오류 처리
                 try:
                     obj = cls.from_dict(data)
                     result.append(obj)
                     logger.debug(f"Loaded object: {obj}")
                 except Exception as e:
-                    logger.error(f"Failed to parse object of type {typ} from {path}: {e}")
-                    raise
-            elif not ignore_unknown:
-                logger.error(f"Unknown type: {typ!r} in {path}")
-                raise ValueError(f"Unknown type: {typ!r}")
+                    logger.error(f"Failed to parse object of type {typ} with data {data} from {path}: {e}")
+                    continue
+
+            except Exception as e:
+                logger.error(f"Unexpected error while processing item {item} from {path}: {e}")
+                continue
+
         return result

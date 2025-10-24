@@ -1,0 +1,98 @@
+[
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "reichsbanner",
+            "strength": 1,
+            "faction": "SPD"
+        }
+    },
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "police",
+            "strength": 1,
+            "faction": "GOVERNMENT"
+        }
+    },
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "reichswehr_1",
+            "strength": 1,
+            "faction": "GOVERNMENT"
+        }
+    },
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "reichswehr_2",
+            "strength": 2,
+            "faction": "GOVERNMENT"
+        }
+    },
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "soldiers",
+            "strength": 1,
+            "faction": "KPD"
+        }
+    },
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "workers",
+            "strength": 1,
+            "faction": "KPD"
+        }
+    },
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "spartacist_uprising",
+            "strength": 1,
+            "faction": "KPD"
+        }
+    },
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "rote_ruhrarmee",
+            "strength": 2,
+            "faction": "KPD"
+        }
+    },
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "roter_frontkaempferbund",
+            "strength": 1,
+            "faction": "KPD"
+        }
+    },
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "freikorps_1",
+            "strength": 1,
+            "faction": "DNVP"
+        }
+    },
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "freikorps_2",
+            "strength": 2,
+            "faction": "DNVP"
+        }
+    },
+    {
+        "type": "UnitData",
+        "data": {
+            "id": "stahlhelm",
+            "strength": 1,
+            "faction": "DNVP"
+        }
+    }
+]
