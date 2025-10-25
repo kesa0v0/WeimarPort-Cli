@@ -28,7 +28,6 @@ class GameManager:
         self.game_knowledge = GameKnowledge(party=party_data, cities=city_data, units=unit_data, threat=threat_data # type: ignore
                                        
                                        )
-
         self.bus = EventBus()
 
     def start_game(self, scenario_file="data/scenarios/main_scenario.json"):

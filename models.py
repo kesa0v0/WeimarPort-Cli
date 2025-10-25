@@ -193,29 +193,15 @@ class GameModel:
                 for city_id in chosen_cities:
                      self._place_threat(city_id, threat_id_to_place)
 
-            # --- 4. 정당 초기 설정 (피규어 배치) ---
+            # --- 4. 정당 초기 설정 (의석만 설정) ---
             party_setup = scenario.initial_party_setup # Key가 PartyID Enum임 (Pydantic 덕분)
             for party_id, setup_details in party_setup.items():
                 # party_id는 이미 PartyID Enum 객체임
                 if party_id not in self.party_states:
-                    # Pydantic 모델에서 이미 검증되었으므로 이 경우는 거의 없음
                     logger.warning(f"Scenario contains setup for unknown party '{party_id}'. Skipping.")
                     continue
-                 
-                # 의석 설정
+                # 의석 설정만 수행
                 self.parliament_state.seats[party_id] = setup_details.parliament_seats
-
-                # 도시 기반 배치 (랜덤 도시 선택)
-                city_bases_count = setup_details.city_bases
-                available_cities = list(self.cities_state.keys())
-                chosen_cities = [] # TODO: 실제 선택 로직 필요
-                if city_bases_count > len(available_cities):
-                    chosen_cities = available_cities
-                else:
-                    chosen_cities = random.sample(available_cities, city_bases_count)
-
-                for city_id in chosen_cities:
-                    self._place_party_base(party_id, city_id)
 
             # --- 5. 초기 턴 설정 ---
             # ⭐️ 시나리오에 정의되어 있지 않다면 기본값 사용
@@ -225,6 +211,7 @@ class GameModel:
             logger.info("Game setup from scenario complete.")
             self.bus.publish(game_events.UI_SHOW_STATUS, self.get_status_data())
 
+            return True
         except Exception as e:
             logger.exception(f"CRITICAL ERROR during scenario setup: {e}")
             raise RuntimeError(f"Failed to setup game from scenario: {e}")
