@@ -30,17 +30,9 @@ class GameManager:
                                        )
         self.bus = EventBus()
 
-    def start_game(self, scenario_file="data/scenarios/main_scenario.json"):
+    def start_game(self):
         logger.info("Setting up game...")
         self.model = GameModel(self.bus, knowledge=self.game_knowledge)
-        
-        try:
-            with open(scenario_file, "r", encoding="utf-8") as f:
-                scenario_data = json.load(f)
-            logger.info(f"Loaded scenario: {scenario_data['name']}")
-        except Exception as e:
-            logger.error(f"Failed to load scenario file {scenario_file}: {e}")
-            return None
 
         self.view = CliView(self.bus)
         
