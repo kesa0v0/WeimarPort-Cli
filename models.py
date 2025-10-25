@@ -190,7 +190,6 @@ class GameModel:
                 else: # 중복 허용 (룰북 규칙 확인 필요)
                      chosen_cities = random.choices(all_city_ids, k=count)
 
-
                 for city_id in chosen_cities:
                      self._place_threat(city_id, threat_id_to_place)
 
