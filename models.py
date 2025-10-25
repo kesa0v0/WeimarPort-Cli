@@ -229,15 +229,10 @@ class GameModel:
             logger.exception(f"CRITICAL ERROR during scenario setup: {e}")
             raise RuntimeError(f"Failed to setup game from scenario: {e}")
 
-    def _find_available_threat(self, threat_template_id: str) -> Optional[str]:
-        """주어진 위협 타입의 사용 가능한 인스턴스 ID를 풀에서 찾아 반환합니다."""
-        if threat_template_id not in self._threat_pool_by_type:
-            return None
-        for instance_id in self._threat_pool_by_type[threat_template_id]:
-            if self.all_threats[instance_id].current_location == "AVAILABLE_POOL":
-                return instance_id
-        return None
 
+    def _get_unit_instance(self, instance_id: str) -> Optional[UnitOnBoard]:
+        return self.all_units.get(instance_id)
+    
     def _find_available_unit(self, unit_template_id: str) -> Optional[str]:
         """주어진 유닛 타입의 사용 가능한 인스턴스 ID를 풀에서 찾아 반환합니다."""
         if unit_template_id not in self._unit_pool_by_type:
@@ -247,12 +242,19 @@ class GameModel:
                 return instance_id
         return None
     
+
     def _get_threat_instance(self, instance_id: str) -> Optional[ThreatOnBoard]:
         return self.all_threats.get(instance_id)
 
-    def _get_unit_instance(self, instance_id: str) -> Optional[UnitOnBoard]:
-        return self.all_units.get(instance_id)
-    
+    def _find_available_threat(self, threat_template_id: str) -> Optional[str]:
+        """주어진 위협 타입의 사용 가능한 인스턴스 ID를 풀에서 찾아 반환합니다."""
+        if threat_template_id not in self._threat_pool_by_type:
+            return None
+        for instance_id in self._threat_pool_by_type[threat_template_id]:
+            if self.all_threats[instance_id].current_location == "AVAILABLE_POOL":
+                return instance_id
+        return None
+
     def _move_threat_instance(self, instance_id: str, new_location: str):
         """위협 인스턴스를 이동시키고, 위치 및 관련 리스트를 업데이트합니다."""
         threat = self._get_threat_instance(instance_id)
@@ -378,22 +380,63 @@ class GameModel:
             logger.warning(f"Attempted to place threat in unknown location '{location_id}'. Skipping.")
             return None
 
-    def _place_party_base(self, party_id: PartyID, city_id: str):
-        """헬퍼 메서드: 정당 기반을 배치하고 상태를 업데이트합니다."""
+
+    def _place_party_base(self, party_id: PartyID, city_id: str) -> bool:
+        """도시에 정당 기반을 배치. 성공 시 True, 실패 시 False 반환."""
         if city_id not in self.cities_state:
             logger.warning(f"Attempted to place base in unknown city '{city_id}'. Skipping.")
-            return
+            return False
         if party_id not in self.party_states:
-             logger.warning(f"Attempted to place base for unknown party '{party_id}'. Skipping.")
-             return
-
-        # TODO: 룰북 규칙 적용 (예: 도시의 최대 기반 수 확인)
+            logger.warning(f"Attempted to place base for unknown party '{party_id}'. Skipping.")
+            return False
         city_capacity = self.knowledge.cities[city_id].max_party_bases
         current_bases = sum(self.cities_state[city_id].party_bases.values())
         if current_bases >= city_capacity:
-            # TODO: 유저에게 제거할 기반 선택 요청
             logger.debug(f"Cannot place base for '{party_id}' in '{city_id}': City capacity ({city_capacity}) reached.")
-            return
-
+            return False
         self.cities_state[city_id].party_bases[party_id] += 1
         logger.debug(f"Placed base for {party_id} in city '{city_id}'.")
+        return True
+
+    def _remove_party_base(self, party_id: PartyID, city_id: str) -> bool:
+        """도시에서 정당 기반을 1 감소. 성공 시 True, 실패 시 False 반환."""
+        if city_id not in self.cities_state:
+            logger.warning(f"Attempted to remove base in unknown city '{city_id}'. Skipping.")
+            return False
+        if party_id not in self.party_states:
+            logger.warning(f"Attempted to remove base for unknown party '{party_id}'. Skipping.")
+            return False
+        current_bases = self.cities_state[city_id].party_bases.get(party_id, 0)
+        if current_bases <= 0:
+            logger.debug(f"No base to remove for '{party_id}' in '{city_id}'.")
+            return False
+        self.cities_state[city_id].party_bases[party_id] -= 1
+        logger.debug(f"Removed base for {party_id} in city '{city_id}'.")
+        return True
+    
+    def execute_demonstration_action(self, player_id: PartyID, city_id: str):
+        """Demonstration 액션: 기반 배치 시 자리 있으면 배치, 없으면 Presenter에 선택 요청."""
+        if city_id not in self.cities_state:
+            logger.warning(f"Invalid city_id '{city_id}' for demonstration action.")
+            return
+        city_state = self.cities_state[city_id]
+        city_capacity = self.knowledge.cities[city_id].max_party_bases
+        current_bases = sum(city_state.party_bases.values())
+        if current_bases < city_capacity:
+            success = self._place_party_base(player_id, city_id)
+            if success:
+                self.bus.publish("DATA_PARTY_BASE_PLACED", {
+                    "player_id": player_id,
+                    "city_id": city_id
+                })
+            return
+        # 자리 없으면 제거할 상대 정당 목록 추출
+        removable_parties = [party for party, count in city_state.party_bases.items() if count > 0 and party != player_id]
+        self.bus.publish("REQUEST_PLAYER_CHOICE", {
+            "action": "remove_party_base",
+            "city_id": city_id,
+            "removable_parties": removable_parties,
+            "player_id": player_id
+        })
+        # 여기서 로직 종료, 응답은 Presenter가 처리
+
