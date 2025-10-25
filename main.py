@@ -15,7 +15,11 @@ logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     installer = GameManager()
-    model, view, presenter = installer.start_game()
+    start_result = installer.start_game()
+    if start_result is None:
+        logger.error("게임을 시작하지 못했습니다.")
+        exit(1)
+    model, view, presenter = start_result
 
     parser = CommandParser(presenter)
 

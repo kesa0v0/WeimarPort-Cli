@@ -1,4 +1,5 @@
 import logging
+import json
 
 
 from presenter import GamePresenter
@@ -29,19 +30,26 @@ class GameManager:
 
         self.bus = EventBus()
 
-    def start_game(self):
+    def start_game(self, scenario_file="data/scenarios/main_scenario.json"):
         logger.info("Setting up game...")
-        model = GameModel(self.bus, knowledge=self.game_knowledge)
-        # scenario_data = self.loader.load(scenario_file)
-        # self.model.setup_game_from_scenario(scenario_data)
-
-        view = CliView(self.bus)
+        self.model = GameModel(self.bus, knowledge=self.game_knowledge)
         
-        presenter = GamePresenter(self.bus, model)
+        try:
+            with open(scenario_file, "r", encoding="utf-8") as f:
+                scenario_data = json.load(f)
+            logger.info(f"Loaded scenario: {scenario_data['name']}")
+        except Exception as e:
+            logger.error(f"Failed to load scenario file {scenario_file}: {e}")
+            return None
+
+        self.view = CliView(self.bus)
+        
+        self.presenter = GamePresenter(self.bus, self.model)
+        self.presenter.handle_load_scenario(scenario_data)
 
         logger.info("Game setup complete.")
 
-        return model, view, presenter
+        return self.model, self.view, self.presenter
 
 
             

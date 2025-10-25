@@ -1,5 +1,6 @@
 from dataclasses import dataclass, asdict
-from typing import Dict, Any
+from pydantic import BaseModel
+from typing import Dict, Any, List
 from enum import Enum
 import logging
 
@@ -149,4 +150,28 @@ class ThreatData:
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "ThreatData":
+        return cls(**d)
+    
+
+@dataclass
+class SocietyData:
+    id: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "SocietyData":
+        return cls(**d)
+    
+
+@dataclass
+class IssueData:
+    id: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "IssueData":
         return cls(**d)

@@ -1,4 +1,5 @@
 
+import random
 from datas import GameKnowledge, ThreatData, UnitData
 from typing import Any
 
@@ -12,8 +13,8 @@ class CityState:
         self.id: str = city.id
         self.party_bases: dict[PartyID, int] = {party: 0 for party in PartyID}
         self.units_on_city: list[str] = []  # List of unit IDs
-        self.threats_on_city: list[str] = []  # List of threat IDs
-                
+        self.threats_on_city: list[str] = []  # List of threat IDs                
+
 
 class UnitOnBoard:
     def __init__(self, unit_data: UnitData, id: str):
@@ -62,12 +63,11 @@ class GameModel:
         self.threats_on_board: dict[str, ThreatOnBoard] = {}
         self.units_on_board: dict[str, UnitOnBoard] = {}
         self.cities_state: dict[str, CityState] = {}
+        for city_id, city_data in self.knowledge.cities.items():
+            self.cities_state[city_id] = CityState(city_data)
 
     def get_current_player(self) -> PartyID:
         return self.turn
-        
-    def setup_game_from_scenario(self, scenario_data: dict[str, Any]):
-        pass
 
     def get_status_data(self) -> dict[str, Any]:
         status = {
@@ -77,3 +77,5 @@ class GameModel:
             "cities": self.cities_state
         }
         return status
+
+    

@@ -1,0 +1,59 @@
+{
+  "id": "main_scenario",
+  "name": "The Fight for Democracy (Main Scenario)",
+
+  "starting_trackers": {
+    "round": 1,
+    "foreign_affairs_track": "1918 Compiègne",
+    "economy_track": 1
+  },
+
+  "starting_president": "EBERT",
+
+  "starting_government": {
+    "chancellor": "SPD",
+    "parties": ["SPD", "ZENTRUM"]
+  },
+
+  "starting_minor_parties": {
+    "DDP": "SPD",
+    "DVP": "ZENTRUM",
+    "USPD": "KPD"
+  },
+
+  "initial_threats": {
+    "dr_box": ["BLOCKADE", "INFLATION"],
+    "specific_cities": {
+      "munich": ["COUNCILS", "UNREST"],
+      "berlin": ["UNREST"],
+      "essen": ["UNREST"],
+      "hamburg": ["UNREST"]
+    },
+    "random_cities": [
+      {
+        "threat_id": "POVERTY",
+        "count": 3,
+        "unique_cities": true
+      }
+    ]
+  },
+
+  "initial_party_setup": {
+    "SPD": {
+      "city_bases": 6,
+      "parliament_seats": 7
+    },
+    "ZENTRUM": {
+      "city_bases": 5,
+      "parliament_seats": 5
+    },
+    "KPD": {
+      "city_bases": 4,
+      "parliament_seats": 4
+    },
+    "DNVP": {
+      "city_bases": 3,
+      "parliament_seats": 3
+    }
+  }
+}
