@@ -4,10 +4,11 @@ import json
 
 from presenter import GamePresenter
 from utils.data_loader import DataLoader
-from datas import GameKnowledge
+from datas import GameKnowledge, PartyData
 from models import GameModel
 from cli_view import CliView
 from event_bus import EventBus
+from utils.scenario_loader import load_and_validate_scenario
 
 
 logger = logging.getLogger(__name__) 
@@ -24,7 +25,7 @@ class GameManager:
         unit_data = self.loader.load("data/units.json")
         threat_data = self.loader.load("data/threats.json")
 
-        self.game_knowledge = GameKnowledge(party=party_data, cities=city_data, units=unit_data, threat=threat_data
+        self.game_knowledge = GameKnowledge(party=party_data, cities=city_data, units=unit_data, threat=threat_data # type: ignore
                                        
                                        )
 
@@ -45,11 +46,18 @@ class GameManager:
         self.view = CliView(self.bus)
         
         self.presenter = GamePresenter(self.bus, self.model)
-        self.presenter.handle_load_scenario(scenario_data)
 
         logger.info("Game setup complete.")
 
         return self.model, self.view, self.presenter
 
+    def load_scenario(self, filepath: str):
+        scenario_model = load_and_validate_scenario(filepath)
+        if not scenario_model:
+            logger.error("Scenario validation failed. Cannot load scenario.")
+            return False
+
+        self.presenter.handle_load_scenario(scenario_model)
+        return True
 
             

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict
 from pydantic import BaseModel
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Mapping
 from enum import Enum
 import logging
 
@@ -30,38 +30,16 @@ def _enum_from_value(enum_cls, v: Any):
         except Exception:
             raise ValueError(f"Cannot convert {v!r} to {enum_cls}")
 
-@dataclass
-class GameKnowledge:
-    party: dict[str, Any]
-    cities: dict[str, Any]
-    units: dict[str, Any]
-    threat: dict[str, Any]
 
-@dataclass()
-class PartyData:
-    id: str
+class PartyData(BaseModel):
+    id: PartyID
     party_color: str
 
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
 
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "PartyData":
-        return cls(**d)
-
-@dataclass
-class MinorPartyData:
+class MinorPartyData(BaseModel):
     id: str
 
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "MinorPartyData":
-        return cls(**d)
-
-@dataclass
-class CardData:
+class CardData(BaseModel):
     id: str
     desc_id: str
     
@@ -71,107 +49,41 @@ class CardData:
     events: str # TODO: 이벤트 구조체로 변경 필요
 
     is_removed_on_use: bool
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "CardData":
-        return cls(**d)
     
-@dataclass
 class PartyCardData(CardData):
     party_id: PartyID
-
-    def to_dict(self) -> Dict[str, Any]:
-        d = asdict(self)
-        d["party_id"] = _enum_to_value(self.party_id)
-        return d
-
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "PartyCardData":
-        data = dict(d)
-        data["party_id"] = _enum_from_value(PartyID, data.get("party_id"))
-        return cls(**data)
+    party_card_addition_type: str | None
 
 
-@dataclass
 class TimelineCardData(CardData):
     era: list[int]
 
-    def to_dict(self) -> Dict[str, Any]:
-        d = asdict(self)
-        d["era"] = self.era
-        return d
 
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "TimelineCardData":
-        data = dict(d)
-        data["era"] = data.get("era", [])
-        return cls(**data)
-
-
-@dataclass
-class CityData:
+class CityData(BaseModel):
     id: str
     max_party_bases: int
     city_dice_roll: int
 
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "CityData":
-        return cls(**d)
-
-@dataclass
-class UnitData:
+class UnitData(BaseModel):
     id: str
     strength: int
     faction: Faction
 
-    def to_dict(self) -> Dict[str, Any]:
-        d = asdict(self)
-        d["faction"] = _enum_to_value(self.faction)
-        return d
-
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "UnitData":
-        data = dict(d)
-        data["faction"] = _enum_from_value(Faction, data.get("faction"))
-        return cls(**data)
-    
-@dataclass
-class ThreatData:
+class ThreatData(BaseModel):
     id: str
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ThreatData":
-        return cls(**d)
+    max_count: int
     
 
-@dataclass
-class SocietyData:
+class SocietyData(BaseModel):
     id: str
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "SocietyData":
-        return cls(**d)
     
 
-@dataclass
-class IssueData:
+class IssueData(BaseModel):
     id: str
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "IssueData":
-        return cls(**d)
+    
+    
+class GameKnowledge(BaseModel):
+    party: Dict[str, PartyData]
+    cities: Dict[str, CityData]
+    units: Dict[str, UnitData]
+    threat: Dict[str, ThreatData]

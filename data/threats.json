@@ -2,73 +2,85 @@
     {
         "type": "ThreatData",
         "data": {
-            "id": "poverty"
+            "id": "poverty",
+            "max_count": 12
         }
     },
     {
         "type": "ThreatData",
         "data": {
-            "id": "prosperity"
+            "id": "prosperity",
+            "max_count": 12
         }
     },
     {
         "type": "ThreatData",
         "data": {
-            "id": "unrest"
+            "id": "unrest",
+            "max_count": 11
         }
     },
     {
         "type": "ThreatData",
         "data": {
-            "id": "inflation"
+            "id": "inflation",
+            "max_count": 3
         }
     },
     {
         "type": "ThreatData",
         "data": {
-            "id": "blockade"
+            "id": "blockade",
+            "max_count": 3
         }
     },
     {
         "type": "ThreatData",
         "data": {
-            "id": "violent_peace"
+            "id": "violent_peace",
+            "max_count": 2
         }
     },
     {
         "type": "ThreatData",
         "data": {
-            "id": "instable_state"
+            "id": "instable_state",
+            "max_count": 2
         }
     },
     {
         "type": "ThreatData",
         "data": {
-            "id": "minority_cabinet"
+            "id": "minority_cabinet",
+            "max_count": 1
         }
     },
     {
         "type": "ThreatData",
         "data": {
-            "id": "black_friday"
+            "id": "black_friday",
+            "max_count": 2
         }
     },
     {
         "type": "ThreatData",
         "data": {
-            "id": "regime"
+            "id": "regime",
+            "max_count": 4
         }
     },
     {
         "type": "ThreatData",
         "data": {
-            "id": "council"
+            "id": "council",
+            "max_count": 4
         }
     },
     {
         "type": "ThreatData",
         "data": {
-            "id": "uprising"
+            "id": "uprising",
+            "max_count": 4
         }
     }
 ]

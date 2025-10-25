@@ -21,6 +21,23 @@ if __name__ == "__main__":
         exit(1)
     model, view, presenter = start_result
 
+    while True:
+        print(f"{Fore.YELLOW}{Style.BRIGHT}시나리오 선택{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}{Style.BRIGHT}1. 기본 시나리오{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}{Style.BRIGHT}5. 저장 파일 로드{Style.RESET_ALL}")
+        select = input(f"{Fore.CYAN}{Style.BRIGHT}선택: {Style.RESET_ALL}").strip()
+
+        if select == "1":
+            scenario_file = "data/scenarios/main_scenario.json"
+            if installer.load_scenario(scenario_file):
+                logger.info("기본 시나리오가 로드되었습니다.")
+                break
+            else:
+                logger.error("기본 시나리오 로드에 실패했습니다. 다시 시도해주세요.")
+        elif select == "5":
+            print(f"{Fore.RED}{Style.DIM}아직 구현되지 않은 기능입니다.{Style.RESET_ALL}")
+            continue
+
     parser = CommandParser(presenter)
 
     while True:
