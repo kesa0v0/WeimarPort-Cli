@@ -68,6 +68,7 @@ class UnitData(BaseModel):
     id: str
     strength: int
     faction: Faction
+    max_count: int
 
 class ThreatData(BaseModel):
     id: str

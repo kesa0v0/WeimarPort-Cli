@@ -1,7 +1,7 @@
 
 import logging
 import random
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Set
 import uuid
 
 from datas import GameKnowledge, ThreatData, UnitData
@@ -19,22 +19,23 @@ class CityState:
         self.city: CityData = city
         self.id: str = city.id
         self.party_bases: dict[PartyID, int] = {party: 0 for party in PartyID}
-        self.units_on_city: list[str] = []  # List of unit IDs
-        self.threats_on_city: list[str] = []  # List of threat IDs                
+        self.units_on_city: Set[str] = set()  # List of unit IDs
+        self.threats_on_city: Set[str] = set()  # List of threat IDs
 
 
 class UnitOnBoard:
     def __init__(self, unit_data: UnitData, id: str):
         self.unit_data = unit_data
         self.id: str = id
-        self.current_location: Optional[str | PartyID] = None  # city_id or party
+        self.current_location: str = "AVAILABLE_POOL"
+        self.is_flipped: bool = False
 
 
 class ThreatOnBoard:
     def __init__(self, threat_type: ThreatData, id: str):
         self.threat_data = threat_type
         self.id: str = id
-        self.current_location: Optional[str] = None  # city_id or "DR_BOX"
+        self.current_location: str = "AVAILABLE_POOL"
 
 
 class PartyState:
@@ -44,8 +45,10 @@ class PartyState:
         self.current_vp: int = 0
         self.reserved_ap: int = 0
 
-        self.units_in_supply: list[str] = []  # List of unit IDs
-        
+        self.current_seats: int = 0
+
+        self.unit_supply: Set[str] = set()  # List of unit IDs
+
         self.hand_timeline: list[str] = []
         self.hand_party: list[str] = []
         self.party_deck: list[str] = []
@@ -69,22 +72,51 @@ class GameModel:
         self.round = 0
         self.turn: Optional[PartyID] = None
 
-        self.dr_box_threats: list[str] = []
-
-        self.governing_parties: list[PartyID] = []
-        self.chancellor: Optional[PartyID] = None
-
-        self.party_states: dict[PartyID, PartyState] = {
-            party: PartyState(party) for party in PartyID
-        }
-
         self.parliament_state = ParliamentState()
-        
+        self.governing_parties: set[PartyID] = set()
+        self.chancellor: Optional[PartyID] = None
+        self.party_states: dict[str, PartyState] = {}
         self.cities_state: dict[str, CityState] = {}
-        for city_id, city_data in self.knowledge.cities.items():
-            self.cities_state[city_id] = CityState(city_data)
 
-        self.units_pool: dict[str, UnitOnBoard] = {}
+        # --- Object Pools ---
+        self.all_threats: Dict[str, ThreatOnBoard] = {}
+        self.all_units: Dict[str, UnitOnBoard] = {}
+        self._threat_pool_by_type: Dict[str, List[str]] = {}
+        self._unit_pool_by_type: Dict[str, List[str]] = {}
+        self.dr_box_threats: Set[str] = set()
+        self.dissolved_units: Set[str] = set()
+
+        if self.knowledge:
+            # Initialize Party States
+            if self.knowledge.party:
+                self.party_states = {party_id: PartyState(PartyID(party_id)) for party_id in self.knowledge.party.keys()}
+            # Initialize City States
+            if self.knowledge.cities:
+                self.cities_state = {city_id: CityState(city_data) for city_id, city_data in self.knowledge.cities.items()}
+
+            # ⭐️ Initialize Threat Pool
+            if self.knowledge.threat:
+                logger.debug("Initializing threat pool...")
+                for template_id, threat_data in self.knowledge.threat.items():
+                    self._threat_pool_by_type[template_id] = []
+                    for i in range(threat_data.max_count):
+                        instance_id = f"{template_id}_{i+1}"
+                        threat_instance = ThreatOnBoard(id=instance_id, threat_type=threat_data)
+                        self.all_threats[instance_id] = threat_instance
+                        self._threat_pool_by_type[template_id].append(instance_id)
+                logger.info(f"Threat pool initialized with {len(self.all_threats)} instances.")
+
+            # ⭐️ Initialize Unit Pool
+            if self.knowledge.units:
+                logger.debug("Initializing unit pool...")
+                for template_id, unit_data in self.knowledge.units.items():
+                    self._unit_pool_by_type[template_id] = []
+                    for i in range(unit_data.max_count):
+                        instance_id = f"{template_id}_{i+1}"
+                        unit_instance = UnitOnBoard(id=instance_id, unit_data=unit_data)
+                        self.all_units[instance_id] = unit_instance
+                        self._unit_pool_by_type[template_id].append(instance_id)
+                logger.info(f"Unit pool initialized with {len(self.all_units)} instances.")
 
     def get_current_player(self) -> Optional[PartyID]:
         return self.turn
@@ -146,7 +178,6 @@ class GameModel:
                 count = task.count
                 unique = task.unique_cities
 
-                # ... (랜덤 도시 선택 로직 동일) ...
                 chosen_cities = []
                 if count > len(all_city_ids):
                      chosen_cities = all_city_ids
@@ -200,70 +231,157 @@ class GameModel:
             logger.exception(f"CRITICAL ERROR during scenario setup: {e}")
             raise RuntimeError(f"Failed to setup game from scenario: {e}")
 
-    def _get_threat_count_on_board(self, threat_id: str) -> int:
-        """헬퍼 메서드: 특정 위협이 보드에 몇 개 있는지 반환합니다."""
-        return sum(1 for city in self.cities_state.values() if threat_id in city.threats_on_city) + self.dr_box_threats.count(threat_id)
 
-    def _place_threat_in_dr_box(self, threat_id: str):
-        """헬퍼 메서드: DR 박스에 위협 마커를 배치하고 상태를 업데이트합니다."""
-        if threat_id not in self.knowledge.threat:
-            logger.warning(f"Attempted to place unknown threat '{threat_id}' in DR Box. Skipping.")
-            return
-        # DR Box 내 최대 개수 제한 (룰북: 빈곤 2개, 번영 1개 등)
-        max_count = self.knowledge.threat[threat_id].max_count
-        current_count = self.dr_box_threats.count(threat_id)
-        if current_count >= max_count:
-            logger.debug(f"DR Box already has maximum count of threat '{threat_id}'. Skipping placement.")
-            return
-        self.dr_box_threats.append(threat_id)
-        logger.debug(f"Placed threat '{threat_id}' in DR Box.")
+    def _find_available_threat(self, threat_template_id: str) -> Optional[str]:
+        """주어진 위협 타입의 사용 가능한 인스턴스 ID를 풀에서 찾아 반환합니다."""
+        if threat_template_id not in self._threat_pool_by_type:
+            return None
+        for instance_id in self._threat_pool_by_type[threat_template_id]:
+            if self.all_threats[instance_id].current_location == "AVAILABLE_POOL":
+                return instance_id
+        return None
 
-    def _place_threat(self, location_id: str, threat_id: str):
-        """헬퍼 메서드: 위협 마커를 배치하고 상태를 업데이트합니다."""
-        if threat_id not in self.knowledge.threat:
-            logger.warning(f"Attempted to place unknown threat '{threat_id}'. Skipping.")
-            return
+    def _find_available_unit(self, unit_template_id: str) -> Optional[str]:
+        """주어진 유닛 타입의 사용 가능한 인스턴스 ID를 풀에서 찾아 반환합니다."""
+        if unit_template_id not in self._unit_pool_by_type:
+            return None
+        for instance_id in self._unit_pool_by_type[unit_template_id]:
+            if self.all_units[instance_id].current_location == "AVAILABLE_POOL":
+                return instance_id
+        return None
+    
+    def _get_threat_instance(self, instance_id: str) -> Optional[ThreatOnBoard]:
+        return self.all_threats.get(instance_id)
 
+    def _get_unit_instance(self, instance_id: str) -> Optional[UnitOnBoard]:
+        return self.all_units.get(instance_id)
+    
+    def _move_threat_instance(self, instance_id: str, new_location: str):
+        """위협 인스턴스를 이동시키고, 위치 및 관련 리스트를 업데이트합니다."""
+        threat = self._get_threat_instance(instance_id)
+        if not threat:
+            return
+        old_location = threat.current_location
+
+        # 이전 위치에서 제거
+        if old_location == "DR_BOX":
+            self.dr_box_threats.discard(instance_id)
+        elif old_location in self.cities_state:
+            self.cities_state[old_location].threats_on_city.discard(instance_id)
+
+        # 위치 정보 갱신
+        threat.current_location = new_location
+
+        # 새 위치에 추가
+        if new_location == "DR_BOX":
+            self.dr_box_threats.add(instance_id)
+        elif new_location in self.cities_state:
+            self.cities_state[new_location].threats_on_city.add(instance_id)
+        # AVAILABLE_POOL은 별도 관리 필요 없음
+
+        logger.debug(f"Moved threat '{threat.id}' (ID: {instance_id}) from '{old_location}' to '{new_location}'.")
+
+    def _get_threats_in_location(self, location_id: str, threat_template_id: Optional[str] = None) -> List[str]:
+        """특정 위치에 있는 위협 인스턴스 ID 목록을 반환합니다. (template ID로 필터링 가능)"""
+        instance_ids = []
+        target_set = set()
         if location_id == "DR_BOX":
-            self._place_threat_in_dr_box(threat_id)
+            target_set = self.dr_box_threats
         elif location_id in self.cities_state:
-            # 번영-빈곤 상쇄 및 DR Box 룰북 규칙 적용
-            if threat_id == "poverty":
-                if "prosperity" in self.cities_state[location_id].threats_on_city:
-                    self.cities_state[location_id].threats_on_city.remove("prosperity")
-                    logger.debug(f"Removed 'prosperity' from city '{location_id}' due to 'poverty' placement.")
-                elif self.cities_state[location_id].threats_on_city.count("poverty") >= 1:
-                    self._place_threat_in_dr_box("poverty")
-                    return
-            elif threat_id == "prosperity":
-                if self.cities_state[location_id].threats_on_city.count("prosperity") >= 1:
-                    if "poverty" in self.dr_box_threats:
-                        self.dr_box_threats.remove("poverty")
-                        logger.debug(f"Removed 'poverty' from DR Box due to duplicate 'prosperity' placement in city '{location_id}'.")
-                    return
-                elif "poverty" in self.cities_state[location_id].threats_on_city:
-                    self.cities_state[location_id].threats_on_city.remove("poverty")
-                    logger.debug(f"Removed 'poverty' from city '{location_id}' due to 'prosperity' placement.")
-            # 상대 정당 위협 있으면 대체 (council <-> regime)
-            if threat_id == "council" and "regime" in self.cities_state[location_id].threats_on_city:
-                self.cities_state[location_id].threats_on_city.remove("regime")
-                self.cities_state[location_id].threats_on_city.append("council")
-                logger.debug(f"Replaced 'regime' with 'council' in city '{location_id}'.")
-                return
-            if threat_id == "regime" and "council" in self.cities_state[location_id].threats_on_city:
-                self.cities_state[location_id].threats_on_city.remove("council")
-                self.cities_state[location_id].threats_on_city.append("regime")
-                logger.debug(f"Replaced 'council' with 'regime' in city '{location_id}'.")
-                return
-            # 기타 위협 중복 시 무시
-            if threat_id in self.cities_state[location_id].threats_on_city:
-                logger.debug(f"Threat '{threat_id}' already present in city '{location_id}'. Skipping duplicate placement.")
-                return
+            target_set = self.cities_state[location_id].threats_on_city
+        else:
+            return []
+
+        for inst_id in target_set:
+            threat = self._get_threat_instance(inst_id)
+            if threat:
+                if threat_template_id is None or threat.threat_data.id == threat_template_id:
+                    instance_ids.append(inst_id)
+        return instance_ids
+
+
+    def _place_threat(self, location_id: str, threat_template_id: str) -> Optional[str]:
+        """
+        위협 마커를 풀에서 찾아 지정된 위치에 배치하며, 게임 규칙을 적용합니다.
+        성공 시 배치된 인스턴스 ID를 반환, 실패 시 None 반환.
+        """
+        threat_template = self.knowledge.threat.get(threat_template_id)
+        if not threat_template:
+            logger.warning(f"Attempted to place unknown threat '{threat_template_id}'. Skipping.")
+            return None
+
+        # --- DR Box 배치 ---
+        if location_id == "DR_BOX":
+            max_in_dr = getattr(threat_template, 'max_in_dr_box', float('inf'))
+            current_in_dr = len(self._get_threats_in_location("DR_BOX", threat_template_id))
+            if current_in_dr >= max_in_dr:
+                logger.debug(f"Cannot place '{threat_template_id}' in DR Box: Maximum count ({max_in_dr}) reached.")
+                return None
+
+            available_instance_id = self._find_available_threat(threat_template_id)
+            if available_instance_id:
+                self._move_threat_instance(available_instance_id, "DR_BOX")
+                return available_instance_id
+            else:
+                logger.debug(f"Cannot place threat '{threat_template_id}': No available instances in pool.")
+                return None
             
-            self.cities_state[location_id].threats_on_city.append(threat_id)
-            logger.debug(f"Placed threat '{threat_id}' in city '{location_id}'.")
+        # --- 도시 배치 ---
+        elif location_id in self.cities_state:
+            city_state = self.cities_state[location_id]
+            max_per_city = getattr(threat_template, 'max_per_city', float('inf'))
+            current_in_city = len(self._get_threats_in_location(location_id, threat_template_id))
+            if current_in_city >= max_per_city:
+                if threat_template_id == "poverty":
+                    logger.debug(f"'poverty' already in '{location_id}' at max ({max_per_city}). Attempting DR Box.")
+                    return self._place_threat("DR_BOX", threat_template_id)
+                elif threat_template_id == "prosperity":
+                    logger.debug(f"'prosperity' already in '{location_id}' at max ({max_per_city}). Attempting to remove 'poverty' from DR Box.")
+                    dr_poverty_id = self._get_threats_in_location("DR_BOX", "poverty")
+                    if dr_poverty_id:
+                        self._move_threat_instance(dr_poverty_id[0], "AVAILABLE_POOL")
+                    return None
+                else:
+                    logger.debug(f"Cannot place '{threat_template_id}' in '{location_id}': Max per city ({max_per_city}) reached.")
+                    return None
+
+            # 상호작용 규칙 적용
+            if threat_template_id == "poverty":
+                prosperity_ids = self._get_threats_in_location(location_id, "prosperity")
+                if prosperity_ids:
+                    self._move_threat_instance(prosperity_ids[0], "AVAILABLE_POOL")
+                    logger.debug(f"Removed 'prosperity' from city '{location_id}' due to 'poverty' placement attempt.")
+                    return None
+            elif threat_template_id == "prosperity":
+                poverty_ids = self._get_threats_in_location(location_id, "poverty")
+                if poverty_ids:
+                    self._move_threat_instance(poverty_ids[0], "AVAILABLE_POOL")
+                    logger.debug(f"Removed 'poverty' from city '{location_id}' due to 'prosperity' placement attempt.")
+                    return None
+            elif threat_template_id == "council":
+                regime_ids = self._get_threats_in_location(location_id, "regime")
+                if regime_ids:
+                    self._move_threat_instance(regime_ids[0], "AVAILABLE_POOL")
+                    logger.debug(f"Removed 'regime' from city '{location_id}' to place 'council'.")
+            elif threat_template_id == "regime":
+                council_ids = self._get_threats_in_location(location_id, "council")
+                if council_ids:
+                    self._move_threat_instance(council_ids[0], "AVAILABLE_POOL")
+                    logger.debug(f"Removed 'council' from city '{location_id}' to place 'regime'.")
+
+            available_instance_id = self._find_available_threat(threat_template_id)
+            if available_instance_id:
+                self._move_threat_instance(available_instance_id, location_id)
+                return available_instance_id
+            else:
+                logger.debug(f"Cannot place threat '{threat_template_id}': No available instances in pool.")
+                return None
+
+        # --- 알 수 없는 위치 ---
         else:
             logger.warning(f"Attempted to place threat in unknown location '{location_id}'. Skipping.")
+            return None
+
 
     def _place_party_base(self, party_id: PartyID, city_id: str):
         """헬퍼 메서드: 정당 기반을 배치하고 상태를 업데이트합니다."""

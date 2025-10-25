@@ -4,7 +4,8 @@
         "data": {
             "id": "reichsbanner",
             "strength": 1,
-            "faction": "SPD"
+            "faction": "SPD",
+            "max_count": 3
         }
     },
     {
@@ -12,7 +13,8 @@
         "data": {
             "id": "police",
             "strength": 1,
-            "faction": "GOVERNMENT"
+            "faction": "GOVERNMENT",
+            "max_count": 5
         }
     },
     {
@@ -20,7 +22,8 @@
         "data": {
             "id": "reichswehr_1",
             "strength": 1,
-            "faction": "GOVERNMENT"
+            "faction": "GOVERNMENT",
+            "max_count": 3
         }
     },
     {
@@ -28,7 +31,8 @@
         "data": {
             "id": "reichswehr_2",
             "strength": 2,
-            "faction": "GOVERNMENT"
+            "faction": "GOVERNMENT",
+            "max_count": 3
         }
     },
     {
@@ -36,7 +40,8 @@
         "data": {
             "id": "soldiers",
             "strength": 1,
-            "faction": "KPD"
+            "faction": "KPD",
+            "max_count": 3
         }
     },
     {
@@ -44,7 +49,8 @@
         "data": {
             "id": "workers",
             "strength": 1,
-            "faction": "KPD"
+            "faction": "KPD",
+            "max_count": 3
         }
     },
     {
@@ -52,7 +58,8 @@
         "data": {
             "id": "spartacist_uprising",
             "strength": 1,
-            "faction": "KPD"
+            "faction": "KPD",
+            "max_count": 3
         }
     },
     {
@@ -60,7 +67,8 @@
         "data": {
             "id": "rote_ruhrarmee",
             "strength": 2,
-            "faction": "KPD"
+            "faction": "KPD",
+            "max_count": 2
         }
     },
     {
@@ -68,7 +76,8 @@
         "data": {
             "id": "roter_frontkaempferbund",
             "strength": 1,
-            "faction": "KPD"
+            "faction": "KPD",
+            "max_count": 3
         }
     },
     {
@@ -76,7 +85,8 @@
         "data": {
             "id": "freikorps_1",
             "strength": 1,
-            "faction": "DNVP"
+            "faction": "DNVP",
+            "max_count": 3
         }
     },
     {
@@ -84,7 +94,8 @@
         "data": {
             "id": "freikorps_2",
             "strength": 2,
-            "faction": "DNVP"
+            "faction": "DNVP",
+            "max_count": 3
         }
     },
     {
@@ -92,7 +103,8 @@
         "data": {
             "id": "stahlhelm",
             "strength": 1,
-            "faction": "DNVP"
+            "faction": "DNVP",
+            "max_count": 3
         }
     }
 ]

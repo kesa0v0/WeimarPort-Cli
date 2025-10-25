@@ -1,6 +1,6 @@
 # scenario_models.py (신규 생성)
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 from pydantic import BaseModel, Field, ValidationError, field_validator, validator
 
 from enums import PartyID # PartyID Enum 임포트
@@ -17,7 +17,7 @@ class StartingTrackers(BaseModel):
 
 class StartingGovernment(BaseModel):
     chancellor: PartyID
-    parties: List[PartyID]
+    parties: Set[PartyID]
 
 class RandomThreatTask(BaseModel):
     threat_id: str # ⭐️ ThreatData의 id와 일치하는지 검증 필요
