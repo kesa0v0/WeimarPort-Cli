@@ -22,16 +22,16 @@
   },
 
   "initial_threats": {
-    "dr_box": ["BLOCKADE", "INFLATION"],
+    "dr_box": ["blockade", "inflation"],
     "specific_cities": {
-      "munich": ["COUNCILS", "UNREST"],
-      "berlin": ["UNREST"],
-      "essen": ["UNREST"],
-      "hamburg": ["UNREST"]
+      "munich": ["council", "unrest"],
+      "berlin": ["unrest"],
+      "essen": ["unrest"],
+      "hamburg": ["unrest"]
     },
     "random_cities": [
       {
-        "threat_id": "POVERTY",
+        "threat_id": "poverty",
         "count": 3,
         "unique_cities": true
       }

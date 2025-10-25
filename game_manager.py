@@ -52,7 +52,7 @@ class GameManager:
         return self.model, self.view, self.presenter
 
     def load_scenario(self, filepath: str):
-        scenario_model = load_and_validate_scenario(filepath)
+        scenario_model = load_and_validate_scenario(filepath, self.game_knowledge)
         if not scenario_model:
             logger.error("Scenario validation failed. Cannot load scenario.")
             return False

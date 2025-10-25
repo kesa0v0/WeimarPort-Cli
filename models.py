@@ -207,9 +207,8 @@ class GameModel:
 
                 # 도시 기반 배치 (랜덤 도시 선택)
                 city_bases_count = setup_details.city_bases
-                # ... (도시 선택 로직 동일) ...
                 available_cities = list(self.cities_state.keys())
-                chosen_cities = [] # 실제 선택 로직 필요
+                chosen_cities = [] # TODO: 실제 선택 로직 필요
                 if city_bases_count > len(available_cities):
                     chosen_cities = available_cities
                 else:
@@ -229,7 +228,6 @@ class GameModel:
         except Exception as e:
             logger.exception(f"CRITICAL ERROR during scenario setup: {e}")
             raise RuntimeError(f"Failed to setup game from scenario: {e}")
-
 
     def _find_available_threat(self, threat_template_id: str) -> Optional[str]:
         """주어진 위협 타입의 사용 가능한 인스턴스 ID를 풀에서 찾아 반환합니다."""
@@ -297,7 +295,6 @@ class GameModel:
                 if threat_template_id is None or threat.threat_data.id == threat_template_id:
                     instance_ids.append(inst_id)
         return instance_ids
-
 
     def _place_threat(self, location_id: str, threat_template_id: str) -> Optional[str]:
         """
@@ -381,7 +378,6 @@ class GameModel:
             logger.warning(f"Attempted to place threat in unknown location '{location_id}'. Skipping.")
             return None
 
-
     def _place_party_base(self, party_id: PartyID, city_id: str):
         """헬퍼 메서드: 정당 기반을 배치하고 상태를 업데이트합니다."""
         if city_id not in self.cities_state:
@@ -392,9 +388,12 @@ class GameModel:
              return
 
         # TODO: 룰북 규칙 적용 (예: 도시의 최대 기반 수 확인)
-        # city_capacity = self.knowledge.cities[city_id].max_party_bases
-        # current_bases = sum(self.cities_state[city_id].party_bases.values())
-        # if current_bases >= city_capacity: ...
+        city_capacity = self.knowledge.cities[city_id].max_party_bases
+        current_bases = sum(self.cities_state[city_id].party_bases.values())
+        if current_bases >= city_capacity:
+            # TODO: 유저에게 제거할 기반 선택 요청
+            logger.debug(f"Cannot place base for '{party_id}' in '{city_id}': City capacity ({city_capacity}) reached.")
+            return
 
         self.cities_state[city_id].party_bases[party_id] += 1
         logger.debug(f"Placed base for {party_id} in city '{city_id}'.")

@@ -5,11 +5,12 @@ from typing import Optional
 from pydantic import ValidationError
 
 # ⭐️ 위에서 정의한 ScenarioModel 임포트
+from datas import GameKnowledge
 from scenario_model import ScenarioModel 
 
 logger = logging.getLogger(__name__)
 
-def load_and_validate_scenario(filepath: str) -> Optional[ScenarioModel]:
+def load_and_validate_scenario(filepath: str, game_knowledge: GameKnowledge) -> Optional[ScenarioModel]:
     """
     Loads a scenario JSON file and validates it using the Pydantic model.
     Returns the validated ScenarioModel object or None if validation fails.
@@ -27,6 +28,7 @@ def load_and_validate_scenario(filepath: str) -> Optional[ScenarioModel]:
 
     try:
         # ⭐️ Pydantic 모델로 파싱 및 유효성 검사 실행!
+        ScenarioModel.game_knowledge = game_knowledge  # GameKnowledge 인스턴스 설정
         scenario = ScenarioModel.model_validate(raw_data)
         logger.info(f"Scenario '{scenario.name}' validated successfully.")
         return scenario
