@@ -1,9 +1,10 @@
 
 import logging
 import random
-from datas import GameKnowledge, ThreatData, UnitData
 from typing import Any, Dict, Optional
+import uuid
 
+from datas import GameKnowledge, ThreatData, UnitData
 from enums import PartyID
 from datas import CityData
 from event_bus import EventBus
@@ -26,12 +27,14 @@ class UnitOnBoard:
     def __init__(self, unit_data: UnitData, id: str):
         self.unit_data = unit_data
         self.id: str = id
+        self.current_location: Optional[str | PartyID] = None  # city_id or party
 
 
 class ThreatOnBoard:
     def __init__(self, threat_type: ThreatData, id: str):
         self.threat_data = threat_type
         self.id: str = id
+        self.current_location: Optional[str] = None  # city_id or "DR_BOX"
 
 
 class PartyState:
@@ -81,8 +84,7 @@ class GameModel:
         for city_id, city_data in self.knowledge.cities.items():
             self.cities_state[city_id] = CityState(city_data)
 
-        self.threats_on_board: dict[str, ThreatOnBoard] = {}
-        self.units_on_board: dict[str, UnitOnBoard] = {}
+        self.units_pool: dict[str, UnitOnBoard] = {}
 
     def get_current_player(self) -> Optional[PartyID]:
         return self.turn
@@ -198,22 +200,21 @@ class GameModel:
             logger.exception(f"CRITICAL ERROR during scenario setup: {e}")
             raise RuntimeError(f"Failed to setup game from scenario: {e}")
 
+    def _get_threat_count_on_board(self, threat_id: str) -> int:
+        """헬퍼 메서드: 특정 위협이 보드에 몇 개 있는지 반환합니다."""
+        return sum(1 for city in self.cities_state.values() if threat_id in city.threats_on_city) + self.dr_box_threats.count(threat_id)
+
     def _place_threat_in_dr_box(self, threat_id: str):
         """헬퍼 메서드: DR 박스에 위협 마커를 배치하고 상태를 업데이트합니다."""
         if threat_id not in self.knowledge.threat:
             logger.warning(f"Attempted to place unknown threat '{threat_id}' in DR Box. Skipping.")
             return
-        
-        # 빈곤 - 번영 상쇄
-        if threat_id == "POVERTY" and "PROSPERITY" in self.dr_box_threats:
-            self.dr_box_threats.remove("PROSPERITY")
-            logger.debug("Removed 'PROSPERITY' from DR Box due to 'POVERTY' placement.")
+        # DR Box 내 최대 개수 제한 (룰북: 빈곤 2개, 번영 1개 등)
+        max_count = self.knowledge.threat[threat_id].max_count
+        current_count = self.dr_box_threats.count(threat_id)
+        if current_count >= max_count:
+            logger.debug(f"DR Box already has maximum count of threat '{threat_id}'. Skipping placement.")
             return
-        elif threat_id == "PROSPERITY" and "POVERTY" in self.dr_box_threats:
-            self.dr_box_threats.remove("POVERTY")
-            logger.debug("Removed 'POVERTY' from DR Box due to 'PROSPERITY' placement.")
-            return
-
         self.dr_box_threats.append(threat_id)
         logger.debug(f"Placed threat '{threat_id}' in DR Box.")
 
@@ -223,38 +224,42 @@ class GameModel:
             logger.warning(f"Attempted to place unknown threat '{threat_id}'. Skipping.")
             return
 
-        new_threat = ThreatOnBoard(self.knowledge.threat[threat_id], f"threat_{threat_id}_{len(self.threats_on_board)}")
-        self.threats_on_board[new_threat.id] = new_threat
-        
         if location_id == "DR_BOX":
             self._place_threat_in_dr_box(threat_id)
         elif location_id in self.cities_state:
-            # TODO: CityState 업데이트 로직 (예: self.cities_state[location_id].threats_on_city.append(new_threat.id))
-            # TODO: 룰북 규칙 적용 (예: 빈곤/번영 상쇄, 도시에 동일 위협 중복 불가)
-            
-            # 번영-빈곤 상쇄
-            if threat_id == "POVERTY" and "PROSPERITY" in self.cities_state[location_id].threats_on_city:
-                self.cities_state[location_id].threats_on_city.remove("PROSPERITY")
-                logger.debug(f"Removed 'PROSPERITY' from city '{location_id}' due to 'POVERTY' placement.")
-            elif threat_id == "PROSPERITY" and "POVERTY" in self.cities_state[location_id].threats_on_city:
-                self.cities_state[location_id].threats_on_city.remove("POVERTY")
-                logger.debug(f"Removed 'POVERTY' from city '{location_id}' due to 'PROSPERITY' placement.")
-            
-            # 빈곤 중복 시 DR박스에 빈곤 위협 추가
-            if threat_id == "POVERTY" and "POVERTY" in self.cities_state[location_id].threats_on_city:
-                self._place_threat_in_dr_box(threat_id)
+            # 번영-빈곤 상쇄 및 DR Box 룰북 규칙 적용
+            if threat_id == "poverty":
+                if "prosperity" in self.cities_state[location_id].threats_on_city:
+                    self.cities_state[location_id].threats_on_city.remove("prosperity")
+                    logger.debug(f"Removed 'prosperity' from city '{location_id}' due to 'poverty' placement.")
+                elif self.cities_state[location_id].threats_on_city.count("poverty") >= 1:
+                    self._place_threat_in_dr_box("poverty")
+                    return
+            elif threat_id == "prosperity":
+                if self.cities_state[location_id].threats_on_city.count("prosperity") >= 1:
+                    if "poverty" in self.dr_box_threats:
+                        self.dr_box_threats.remove("poverty")
+                        logger.debug(f"Removed 'poverty' from DR Box due to duplicate 'prosperity' placement in city '{location_id}'.")
+                    return
+                elif "poverty" in self.cities_state[location_id].threats_on_city:
+                    self.cities_state[location_id].threats_on_city.remove("poverty")
+                    logger.debug(f"Removed 'poverty' from city '{location_id}' due to 'prosperity' placement.")
+            # 상대 정당 위협 있으면 대체 (council <-> regime)
+            if threat_id == "council" and "regime" in self.cities_state[location_id].threats_on_city:
+                self.cities_state[location_id].threats_on_city.remove("regime")
+                self.cities_state[location_id].threats_on_city.append("council")
+                logger.debug(f"Replaced 'regime' with 'council' in city '{location_id}'.")
                 return
-            # 번영 중복 시 DR박스에 번영 추가
-            elif threat_id == "PROSPERITY" and "PROSPERITY" in self.cities_state[location_id].threats_on_city:
-                self._place_threat_in_dr_box(threat_id)
+            if threat_id == "regime" and "council" in self.cities_state[location_id].threats_on_city:
+                self.cities_state[location_id].threats_on_city.remove("council")
+                self.cities_state[location_id].threats_on_city.append("regime")
+                logger.debug(f"Replaced 'council' with 'regime' in city '{location_id}'.")
                 return
             # 기타 위협 중복 시 무시
-            elif threat_id in self.cities_state[location_id].threats_on_city:
+            if threat_id in self.cities_state[location_id].threats_on_city:
                 logger.debug(f"Threat '{threat_id}' already present in city '{location_id}'. Skipping duplicate placement.")
                 return
-            # 도시 위협 개수 제한(threat)
-            elif 
-
+            
             self.cities_state[location_id].threats_on_city.append(threat_id)
             logger.debug(f"Placed threat '{threat_id}' in city '{location_id}'.")
         else:
