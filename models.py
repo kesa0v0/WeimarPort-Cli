@@ -448,3 +448,45 @@ class GameModel:
         })
         # 여기서 로직 종료, 응답은 Presenter가 처리
 
+
+    def get_valid_moves(self, player_id: PartyID) -> list:
+        """
+        현재 게임 상태에서 해당 플레이어가 할 수 있는 모든 Move 객체를 리스트로 반환
+        """
+        from game_action import Move, ActionTypeEnum, PlayOptionEnum
+        moves = []
+        # 예시: PASS_TURN 항상 가능
+        moves.append(Move(player_id=player_id, action_type=ActionTypeEnum.PASS_TURN))
+
+        # 예시: 기반 배치 가능한 도시마다 DEMONSTRATION 액션 추가
+        valid_cities = self.get_valid_base_placement_cities(player_id)
+        for city_id in valid_cities:
+            moves.append(Move(player_id=player_id, action_type=ActionTypeEnum.DEMONSTRATION, target_city=city_id))
+
+        # TODO: 카드 플레이, 쿠데타 등 다른 액션 추가
+        # 예시: 플레이어의 손에 카드가 있다면 PLAY_CARD 액션 추가
+        party_state = self.party_states.get(player_id)
+        if party_state:
+            for card_id in party_state.hand_party:
+                moves.append(Move(player_id=player_id, action_type=ActionTypeEnum.PLAY_CARD, card_id=card_id, play_option=PlayOptionEnum.ACTION))
+        return moves
+
+    def execute_move(self, move):
+        """
+        전달받은 Move 객체에 따라 게임 상태를 변경하고 관련 이벤트를 발행
+        """
+        from game_action import ActionTypeEnum
+        if move.action_type == ActionTypeEnum.PASS_TURN:
+            logger.info(f"{move.player_id} passes turn.")
+            # TODO: 턴 넘기기 로직 구현
+            self.bus.publish("DATA_TURN_PASSED", {"player_id": move.player_id})
+        elif move.action_type == ActionTypeEnum.DEMONSTRATION:
+            logger.info(f"{move.player_id} attempts demonstration in {move.target_city}.")
+            self.execute_demonstration_action(move.player_id, move.target_city)
+        elif move.action_type == ActionTypeEnum.PLAY_CARD:
+            logger.info(f"{move.player_id} plays card {move.card_id} with option {move.play_option}.")
+            # TODO: 카드 플레이 로직 구현
+            self.bus.publish("DATA_CARD_PLAYED", {"player_id": move.player_id, "card_id": move.card_id, "play_option": move.play_option})
+        # TODO: COUP, 기타 액션 등 추가
+        else:
+            logger.warning(f"Unknown action type: {move.action_type}")

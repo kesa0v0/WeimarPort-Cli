@@ -2,22 +2,21 @@
 import random
 import asyncio
 from typing import Any, List, Dict
+from game_action import Move
 from player_agent import IPlayerAgent
 from models import GameModel
 # from game_actions import Move
 
 class RandomAIAgent(IPlayerAgent):
 
-    async def get_next_command(self, game_model: GameModel) -> str:
-        # AI는 CommandParser가 필요 없음. 바로 Model에 접근 가능해야 함.
-        # 이 구조에서는 AI도 일단 명령어를 반환하고 Parser가 처리하게 함.
-        # TODO: get_valid_moves 구현 필요
-        valid_moves_placeholder = ["status", "pass"] # 실제로는 model.get_valid_moves 호출
-        chosen_move_placeholder = random.choice(valid_moves_placeholder)
-        print(f"[AI {self.party_id}] 결정: {chosen_move_placeholder}")
-        # AI 계산 시간 시뮬레이션 (선택적)
+    async def get_next_move(self, game_model: GameModel) -> 'Move':
+        valid_moves = game_model.get_valid_moves(self.party_id)
+        if not valid_moves:
+            raise RuntimeError(f"No valid moves for AI {self.party_id}")
+        chosen_move = random.choice(valid_moves)
+        print(f"[AI {self.party_id}] 결정: {chosen_move}")
         await asyncio.sleep(0.1)
-        return chosen_move_placeholder # 예시: 일단 명령어 문자열 반환
+        return chosen_move
 
     async def get_choice(self, options: List[Any], context: Dict[str, Any]) -> Any:
         chosen_option = random.choice(options)

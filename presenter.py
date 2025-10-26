@@ -18,6 +18,8 @@ class SetupState(TypedDict):
     current_party_index: int
     bases_placed_count: int
 
+from game_action import Move
+
 class GamePresenter:
     def __init__(self, bus: EventBus, model: GameModel):
         self.bus = bus
@@ -32,6 +34,17 @@ class GamePresenter:
         ]
         # PLAYER_CHOICE_MADE 이벤트 구독
         self.bus.subscribe(game_events.PLAYER_CHOICE_MADE, self.handle_player_choice_made)
+
+    def handle_move(self, move: Move):
+        """
+        main.py 등에서 전달받은 Move 객체를 실행합니다.
+        """
+        try:
+            result = self.model.execute_move(move)
+            self.bus.publish(game_events.UI_SHOW_MESSAGE, {"message": f"Action executed: {move.action_type}"})
+            # 필요시 result에 따라 추가 이벤트 발행 가능
+        except Exception as e:
+            self.bus.publish(game_events.UI_SHOW_ERROR, {"error": f"Move 실행 중 오류: {e}"})
         
     def handle_show_status(self):
         data = self.model.get_status_data()

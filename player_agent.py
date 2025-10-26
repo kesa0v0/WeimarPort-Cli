@@ -1,6 +1,7 @@
 # player_agent.py
 import abc
 from typing import Any, List, Dict, Optional
+from game_action import Move
 from models import GameModel # GameModel 임포트 가정
 from enums import PartyID
 # from game_actions import Move # Move 클래스 정의 필요
@@ -12,10 +13,9 @@ class IPlayerAgent(abc.ABC):
         self.party_id = party_id
 
     @abc.abstractmethod
-    async def get_next_command(self, game_model: GameModel) -> str:
+    async def get_next_move(self, game_model: GameModel) -> 'Move':
         """
-        현재 게임 상태를 보고 다음 주요 명령(예: 'play card ...', 'coup ...')을 결정하여
-        문자열 형태로 반환합니다. CommandParser가 처리할 형식입니다.
+        현재 게임 상태를 보고 다음 행동(Move 객체)을 결정하여 반환합니다.
         """
         pass
 

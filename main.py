@@ -102,38 +102,37 @@ async def main():
         exit(1)
     presenter.start_initial_base_placement(presenter.scenario) # presenter가 scenario 객체를 가지고 있다고 가정
 
-    parser = CommandParser(presenter)
     logger.info("Entering main game loop...")
     while True:
         try:
             current_player_id = model.get_current_player()
             if not current_player_id:
-                 logger.warning("Waiting for game to start or player to be set...")
-                 await asyncio.sleep(0.1) # 플레이어 설정될 때까지 대기
-                 continue
+                logger.warning("Waiting for game to start or player to be set...")
+                await asyncio.sleep(0.1)
+                continue
 
             current_agent = agents[current_player_id]
 
-            # ⭐️ 에이전트로부터 다음 명령어 비동기적으로 받기
-            command_str = await current_agent.get_next_command(model)
+            # 에이전트로부터 Move 객체를 비동기적으로 받기
+            move = await current_agent.get_next_move(model)
 
-            if command_str.lower() in ('quit', 'exit'):
+            # 종료 명령어 처리 (Move에 종료 타입이 있으면 확장 가능)
+            if hasattr(move, "action_type") and str(move.action_type).lower() in ("quit", "exit"):
                 logger.info("Exit command received.")
                 break
 
-            # ⭐️ 명령어를 파서에게 넘겨 Presenter 호출
-            parser.parse_command(command_str, current_player_id)
+            # Presenter에 Move 객체 전달
+            presenter.handle_move(move)
 
             # TODO: 게임 종료 조건 확인 로직 추가
 
-            # ⭐️ 중요: Presenter가 Model을 변경하고 이벤트를 발행하면,
+            # Presenter가 Model을 변경하고 이벤트를 발행하면,
             # Agent의 receive_message가 호출되어 출력/로깅이 이루어짐.
             # 선택 요청(REQUEST_PLAYER_CHOICE)이 발행되면 Presenter가
             # await relevant_agent.get_choice(...) 를 호출하여 응답을 받음.
 
-        except Exception as e: # 예외 처리 강화
-             logger.exception(f"Error in main loop: {e}")
-             # 또는 break 등 에러 처리
+        except Exception as e:
+            logger.exception(f"Error in main loop: {e}")
 
 if __name__ == "__main__":
     try:

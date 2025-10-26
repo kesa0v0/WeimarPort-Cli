@@ -2,6 +2,7 @@
 import asyncio # 기본 async 라이브러리
 from typing import Any, List, Dict
 from colorama import Fore, Style # 색상 사용 예시
+from game_action import Move
 from player_agent import IPlayerAgent
 from models import GameModel
 from enums import PartyID
@@ -20,14 +21,13 @@ class ConsoleAgent(IPlayerAgent):
 
         return text  # Placeholder for localization logic
 
-    async def get_next_command(self, game_model: GameModel) -> str:
-        # main.py의 메인 루프 입력 로직을 여기로 가져옴
+    async def get_next_move(self, game_model: GameModel) -> 'Move':
+        from command_parser import CommandParser
         prompt = f"{Fore.GREEN}{Style.BRIGHT}[{self.party_id}] 명령> {Style.RESET_ALL}"
-        # input()은 블로킹 함수이므로, asyncio 환경에서는 주의 필요
-        # 여기서는 간단히 await asyncio.get_running_loop().run_in_executor(None, input, prompt) 사용 가능
-        # 또는 더 간단하게 그냥 input 사용 (다른 Agent가 계산하는 동안 블로킹됨)
-        command = await asyncio.to_thread(input, prompt) # input을 비동기처럼 실행
-        return command.strip()
+        cmd_str = await asyncio.to_thread(input, prompt)
+        parser = CommandParser(None)  # presenter는 필요 없으므로 None
+        move = parser.parse_command_to_move(cmd_str.strip(), self.party_id)
+        return move
 
     async def get_choice(self, options: List[Any], context: Dict[str, Any]) -> Any:
         # main.py의 handle_request_player_choice 로직을 여기로 가져옴
