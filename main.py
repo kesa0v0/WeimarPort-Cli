@@ -44,10 +44,11 @@ if __name__ == "__main__":
     if start_result is None:
         logger.error("게임을 시작하지 못했습니다.")
         exit(1)
+        
     model, view, presenter = start_result
 
     installer.bus.subscribe(game_events.REQUEST_PLAYER_CHOICE, handle_request_player_choice)
-    
+
     while True:
         print(f"{Fore.YELLOW}{Style.BRIGHT}시나리오 선택{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}{Style.BRIGHT}1. 기본 시나리오{Style.RESET_ALL}")

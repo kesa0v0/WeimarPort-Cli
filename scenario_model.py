@@ -47,25 +47,6 @@ class ScenarioModel(BaseModel):
     initial_threats: InitialThreats
     initial_party_setup: Dict[PartyID, InitialPartySetupDetail] # Key: PartyID Enum
 
-    # ⭐️ 추가 유효성 검사기 (선택적이지만 강력함)
-    @field_validator('initial_threats')
-    def validate_threat_ids(cls, v: InitialThreats, values):
-        known_threat_ids = set(cls.game_knowledge.threat.keys())
-
-        all_threats = v.dr_box + [t for threats in v.specific_cities.values() for t in threats] + \
-                      [task.threat_id for task in v.random_cities]
-                      
-        for threat_id in all_threats:
-             if threat_id not in known_threat_ids:
-                 raise ValueError(f"Unknown threat_id '{threat_id}' found in scenario.")
-        return v
-
-    @field_validator('initial_threats')
-    def validate_city_ids(cls, v: InitialThreats, values):
-         known_city_ids = set(cls.game_knowledge.cities.keys())
-         for city_id in v.specific_cities.keys():
-             if city_id not in known_city_ids:
-                 raise ValueError(f"Unknown city_id '{city_id}' found in initial_threats.")
-         return v
+    # (game_knowledge 기반 유효성 검사는 외부 함수에서 수행)
 
     # 다른 필드에 대한 유효성 검사기 추가 가능...
