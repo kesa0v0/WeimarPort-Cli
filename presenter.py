@@ -48,10 +48,6 @@ class GamePresenter:
             # 필요시 result에 따라 추가 이벤트 발행 가능
         except Exception as e:
             self.bus.publish(game_events.UI_SHOW_ERROR, {"error": f"Move 실행 중 오류: {e}"})
-        
-    def handle_show_status(self):
-        data = self.model.get_status_data()
-        self.bus.publish(game_events.UI_SHOW_STATUS, data)
 
     async def handle_load_scenario(self, scenario: ScenarioModel):
         """

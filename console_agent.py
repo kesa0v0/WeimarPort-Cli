@@ -22,44 +22,46 @@ class ConsoleAgent(IPlayerAgent):
         return text  # Placeholder for localization logic
 
     async def get_next_move(self, game_model: GameModel) -> 'Move':
-        from command_parser import CommandParser
-        prompt = f"{Fore.GREEN}{Style.BRIGHT}[{self.party_id}] 명령> {Style.RESET_ALL}"
-        cmd_str = await asyncio.to_thread(input, prompt)
-        parser = CommandParser(None)  # presenter는 필요 없으므로 None
-        move = parser.parse_command_to_move(cmd_str.strip(), self.party_id)
-        return move
+           from command_parser import CommandParser
+           prompt = f"{Fore.GREEN}{Style.BRIGHT}[{self.localize(self.party_id)}] 명령 입력> {Style.RESET_ALL}"
+           cmd_str = await asyncio.to_thread(input, prompt)
+           parser = CommandParser(None)  # presenter는 필요 없으므로 None
+           move = parser.parse_command_to_move(cmd_str.strip(), self.party_id)
+           return move
 
     async def get_choice(self, options: List[Any], context: Dict[str, Any]) -> Any:
-        # main.py의 handle_request_player_choice 로직을 여기로 가져옴
-        prompt_str = context.get("prompt") or f"[{self.party_id}] 선택하세요:"
-        print(f"\n🤔 {prompt_str}")
-        # TODO: localize 함수 사용
-        localized_options = [str(opt) for opt in options] # 임시
-        for i, option_str in enumerate(localized_options):
-            print(f"  {i+1}. {option_str}")
+            # main.py의 handle_request_player_choice 로직을 여기로 가져옴
+            party_name = self.localize(self.party_id)
+            prompt_str = context.get("prompt") or f"[{party_name}] 선택하세요:"
+            print(f"\n🤔 [{party_name}] {prompt_str}")
+            # TODO: localize 함수 사용
+            localized_options = [str(opt) for opt in options] # 임시
+            for i, option_str in enumerate(localized_options):
+                print(f"  {i+1}. {option_str}")
 
-        while True:
-            choice_str = await asyncio.to_thread(input, "번호 입력> ")
-            try:
-                choice_index = int(choice_str) - 1
-                if 0 <= choice_index < len(options):
-                    return options[choice_index] # 선택된 원본 옵션 반환
-                else:
-                    print(f"{Fore.RED}[ERROR]{Fore.RESET} 1부터 {len(options)} 사이의 번호를 입력하세요.")
-            except ValueError:
-                print(f"{Fore.RED}[ERROR]{Fore.RESET} 숫자를 입력하세요.")
+            while True:
+                choice_str = await asyncio.to_thread(input, f"[{party_name}] 번호 입력> ")
+                try:
+                    choice_index = int(choice_str) - 1
+                    if 0 <= choice_index < len(options):
+                        return options[choice_index] # 선택된 원본 옵션 반환
+                    else:
+                        print(f"{Fore.RED}[ERROR]{Fore.RESET} 1부터 {len(options)} 사이의 번호를 입력하세요.")
+                except ValueError:
+                    print(f"{Fore.RED}[ERROR]{Fore.RESET} 숫자를 입력하세요.")
 
     def receive_message(self, event_type: str, data: Dict[str, Any]):
+        party_name = self.localize(self.party_id)
         if event_type == "UI_SHOW_MESSAGE":
             message = data.get("message")
             if message:
-                print(f"{Fore.CYAN}[MSG] ({self.party_id}): {message}{Style.RESET_ALL}")
+                print(f"{Fore.CYAN}[MSG] [{party_name}]: {message}{Style.RESET_ALL}")
         elif event_type == "UI_SHOW_ERROR":
             error = data.get("error")
             if error:
-                print(f"{Fore.RED}[ERR] ({self.party_id}): {error}{Style.RESET_ALL}")
+                print(f"{Fore.RED}[ERR] [{party_name}]: {error}{Style.RESET_ALL}")
         elif event_type == "UI_SHOW_STATUS":
-            status_message = Fore.GREEN + Style.BRIGHT + "=== Game Status ===\n"
+            status_message = Fore.GREEN + Style.BRIGHT + f"=== Game Status ({party_name}) ===\n"
             status_message += Fore.CYAN + f"Round: {data['round']}\n"
             status_message += Fore.CYAN + f"Turn: {self.localize(data['turn'])}\n"
             status_message += Fore.YELLOW + "Parties:\n"

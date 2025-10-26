@@ -88,14 +88,6 @@ class GameApp:
             else:
                 print(f"{Fore.RED}[ERROR]{Fore.RESET} 유효한 시나리오 번호를 입력하세요.")
 
-        # 초기 기반 배치 시작
-        if self.presenter.scenario is None:
-            self.logger.error("시나리오가 설정되지 않았습니다.")
-            exit(1)
-
-        await self.presenter.handle_load_scenario(self.presenter.scenario) # 여기서 await
-
-
         self.logger.info("Entering main game loop...")
         while True:
             try:
