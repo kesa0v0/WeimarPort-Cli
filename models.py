@@ -408,6 +408,20 @@ class GameModel:
         logger.debug(f"Removed base for {party_id} in city '{city_id}'.")
         return True
     
+    def get_valid_base_placement_cities(self, party_id: PartyID) -> list[str]:
+        """
+        해당 정당이 아직 기반을 배치하지 않았고, 도시의 최대 기반 수를 넘지 않은 도시 목록 반환
+        """
+        valid_cities = []
+        for city_id, city_state in self.cities_state.items():
+            # 도시의 최대 기반 수
+            max_bases = self.knowledge.cities[city_id].max_party_bases
+            current_total_bases = sum(city_state.party_bases.values())
+            # 해당 정당이 아직 기반을 배치하지 않았고, 도시가 꽉 차지 않은 경우
+            if city_state.party_bases.get(party_id, 0) == 0 and current_total_bases < max_bases:
+                valid_cities.append(city_id)
+        return valid_cities
+
     def execute_demonstration_action(self, player_id: PartyID, city_id: str):
         """Demonstration 액션: 기반 배치 시 자리 있으면 배치, 없으면 Presenter에 선택 요청."""
         if city_id not in self.cities_state:

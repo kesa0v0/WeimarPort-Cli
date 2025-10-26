@@ -44,6 +44,7 @@ class GamePresenter:
         """
         try:
             logger.debug(f"Handling scenario load request for scenario ID: {scenario.id}")
+            self.scenario = scenario
             self.model.setup_game_from_scenario(scenario)
             # 기반 설치 단계 상태 초기화
             self.setup_state = SetupState(
@@ -51,6 +52,7 @@ class GamePresenter:
                 current_party_index=0,
                 bases_placed_count=0
             )
+
             success_message = f"Scenario '{scenario.name}' loaded successfully."
             logger.info(success_message)
             self.bus.publish(game_events.UI_SHOW_MESSAGE, {"message": success_message})

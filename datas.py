@@ -84,7 +84,12 @@ class IssueData(BaseModel):
     
     
 class GameKnowledge(BaseModel):
-    party: Dict[str, PartyData]
+    party: Dict[PartyID, PartyData]
     cities: Dict[str, CityData]
     units: Dict[str, UnitData]
     threat: Dict[str, ThreatData]
+    societies: Dict[str, SocietyData] = {}
+    issues: Dict[str, IssueData] = {}
+    minor_parties: Dict[str, MinorPartyData] = {}
+    party_cards: Dict[str, PartyCardData] = {}
+    timeline_cards: Dict[str, TimelineCardData] = {}
