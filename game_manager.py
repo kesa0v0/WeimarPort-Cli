@@ -2,6 +2,8 @@ import logging
 import json
 
 
+from enums import PartyID
+from player_agent import IPlayerAgent
 from presenter import GamePresenter
 from utils.data_loader import DataLoader
 from datas import GameKnowledge, PartyData
@@ -29,23 +31,23 @@ class GameManager:
                                        )
         self.bus = EventBus()
 
-    def start_game(self):
+    def start_game(self, agents: dict[PartyID, IPlayerAgent]):
         logger.info("Setting up game...")
         self.model = GameModel(self.bus, knowledge=self.game_knowledge)
         
-        self.presenter = GamePresenter(self.bus, self.model)
+        self.presenter = GamePresenter(self.bus, self.model, agents)
 
         logger.info("Game setup complete.")
 
         return self.model, self.presenter
 
-    def load_scenario(self, filepath: str):
+    async def load_scenario(self, filepath: str):
         scenario_model = load_and_validate_scenario(filepath, self.game_knowledge)
         if not scenario_model:
             logger.error("Scenario validation failed. Cannot load scenario.")
             return False
 
-        self.presenter.handle_load_scenario(scenario_model)
+        await self.presenter.handle_load_scenario(scenario_model)
         return True
 
             

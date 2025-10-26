@@ -20,14 +20,7 @@ class GameApp:
 
         self.input_mode = "COMMAND"
         self.pending_choice_data = None
-
-        self.installer = GameManager()
-        start_result = self.installer.start_game()
-        if start_result is None:
-            self.logger.error("게임을 시작하지 못했습니다.")
-            exit(1)
-        self.model, self.presenter = start_result
-
+        
         self.agents = {
             PartyID.SPD: ConsoleAgent(PartyID.SPD),
             PartyID.ZENTRUM: RandomAIAgent(PartyID.ZENTRUM),
@@ -36,6 +29,13 @@ class GameApp:
         }
         agent_types = {pid.name: type(agent).__name__ for pid, agent in self.agents.items()}
         self.logger.info(f"Player agents assigned: {agent_types}")
+
+        self.installer = GameManager()
+        start_result = self.installer.start_game(self.agents)
+        if start_result is None:
+            self.logger.error("게임을 시작하지 못했습니다.")
+            exit(1)
+        self.model, self.presenter = start_result
 
         # EventBus <-> Agent 연결
         self.installer.bus.subscribe(game_events.REQUEST_PLAYER_CHOICE, self.handle_request_player_choice)
@@ -76,25 +76,25 @@ class GameApp:
 
     async def run(self):
         # 시나리오 선택
-        scenario_loaded = False
-        while not scenario_loaded:
+        while True:
             print("\n=== 시나리오 선택 ===")
             print("1. 기본 시나리오 로드")
             user_input = input("시나리오를 선택하세요: ").strip()
             if user_input.lower() == '1':
                 scenario_file = "data/scenarios/main_scenario.json"
-                self.installer.load_scenario(scenario_file)
+                await self.installer.load_scenario(scenario_file)
                 self.logger.info("기본 시나리오가 로드되었습니다.")
-                scenario_loaded = True
+                break
             else:
-                self.logger.error("시나리오 로드 실패.")
-                exit(1)
+                print(f"{Fore.RED}[ERROR]{Fore.RESET} 유효한 시나리오 번호를 입력하세요.")
 
         # 초기 기반 배치 시작
         if self.presenter.scenario is None:
-            self.logger.error("시나리오가 설정되지 않았습니다. 초기 기반 배치를 시작할 수 없습니다.")
+            self.logger.error("시나리오가 설정되지 않았습니다.")
             exit(1)
-        self.presenter.start_initial_base_placement(self.presenter.scenario)
+
+        await self.presenter.handle_load_scenario(self.presenter.scenario) # 여기서 await
+
 
         self.logger.info("Entering main game loop...")
         while True:
@@ -118,6 +118,7 @@ class GameApp:
 
             except Exception as e:
                 self.logger.exception(f"Error in main loop: {e}")
+                break
 
 def main():
     app = GameApp()
