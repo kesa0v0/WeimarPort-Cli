@@ -86,6 +86,7 @@ class GameModel:
         self.dr_box_threats: Set[str] = set()
         self.dissolved_units: Set[str] = set()
 
+    def initialize_game_objects(self):
         if self.knowledge:
             # Initialize Party States
             if self.knowledge.party:
@@ -133,6 +134,12 @@ class GameModel:
     def setup_game_from_scenario(self, scenario: ScenarioModel):
         """Pydantic ScenarioModel 객체를 기반으로 게임의 초기 상태를 설정합니다."""
         logger.info(f"Setting up game from scenario: {scenario.name}")
+
+        try:
+            self.initialize_game_objects()
+        except Exception as e:
+            logger.exception(f"CRITICAL ERROR during game object initialization: {e}")
+            raise RuntimeError(f"Failed to initialize game objects: {e}")
 
         # --- 1. 기본 상태 설정 ---
         try:

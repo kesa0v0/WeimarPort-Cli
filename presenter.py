@@ -1,7 +1,7 @@
 
 
 import logging
-from typing import Any
+from typing import Any, TypedDict
 from enums import PartyID
 from event_bus import EventBus
 import game_events
@@ -12,11 +12,18 @@ from scenario_model import ScenarioModel
 logger = logging.getLogger(__name__)
 
 
+
+class SetupState(TypedDict):
+    phase: str
+    current_party_index: int
+    bases_placed_count: int
+
 class GamePresenter:
     def __init__(self, bus: EventBus, model: GameModel):
         self.bus = bus
         self.model = model
-        self.setup_state = None
+        self.setup_state = None  # type: SetupState | None
+        self.scenario = None
         self.placement_order = [
             PartyID.SPD,
             PartyID.ZENTRUM,
@@ -39,12 +46,11 @@ class GamePresenter:
             logger.debug(f"Handling scenario load request for scenario ID: {scenario.id}")
             self.model.setup_game_from_scenario(scenario)
             # 기반 설치 단계 상태 초기화
-            self.setup_state = {
-                "phase": "base_placement",
-                "current_party_index": 0,
-                "bases_placed_count": 0
-            }
-            self.scenario = scenario  # 이후 응답 루프에서 사용
+            self.setup_state = SetupState(
+                phase="base_placement",
+                current_party_index=0,
+                bases_placed_count=0
+            )
             success_message = f"Scenario '{scenario.name}' loaded successfully."
             logger.info(success_message)
             self.bus.publish(game_events.UI_SHOW_MESSAGE, {"message": success_message})
@@ -62,25 +68,25 @@ class GamePresenter:
             return
 
         try:
-            current_index = int(self.setup_state["current_party_index"])
+            current_index = self.setup_state["current_party_index"]
         except (KeyError, ValueError, TypeError):
             logger.error("Invalid current_party_index in setup_state.")
             return
 
         if current_index >= len(self.placement_order):
             logger.info("All parties base placement complete. Starting first turn.")
-            self.setup_state = {"phase": "setup_complete"}
+            self.setup_state = SetupState(phase="setup_complete", current_party_index=-1, bases_placed_count=-1)
             self.start_first_turn()
             return
 
         current_party_id = self.placement_order[current_index]
         try:
-            bases_to_place = int(scenario.initial_party_setup[current_party_id].city_bases)
+            bases_to_place = scenario.initial_party_setup[current_party_id].city_bases
         except (KeyError, ValueError, TypeError, AttributeError):
             logger.error(f"Invalid bases_to_place for party {current_party_id}.")
             return
         try:
-            placed_count = int(self.setup_state["bases_placed_count"])
+            placed_count = self.setup_state["bases_placed_count"]
         except (KeyError, ValueError, TypeError):
             logger.error("Invalid bases_placed_count in setup_state.")
             return
@@ -96,7 +102,8 @@ class GamePresenter:
             context = {
                 "action": "initial_base_placement",
                 "party": current_party_id,
-                "remaining": bases_to_place - placed_count
+                "remaining": bases_to_place - placed_count,
+                "bases_to_place": bases_to_place
             }
             options = valid_cities
             self.bus.publish(
@@ -106,8 +113,8 @@ class GamePresenter:
             # 응답을 기다림 (응답 핸들러에서 bases_placed_count 증가 및 재호출 필요)
         else:
             # 해당 정당 배치 완료, 다음 정당으로 이동
-            self.setup_state["current_party_index"] = str(current_index + 1)
-            self.setup_state["bases_placed_count"] = "0"
+            self.setup_state["current_party_index"] = current_index + 1
+            self.setup_state["bases_placed_count"] = 0
             # 다음 정당 배치 시작
             self.start_initial_base_placement(scenario)
 
@@ -138,37 +145,24 @@ class GamePresenter:
             logger.error("setup_state is None.")
             return
         selected_city = data.get("selected_option")
+        context = data.get("context", {})
         if not selected_city:
             logger.error("selected_city is None.")
             return
-        
         try:
-            current_party_index = int(self.setup_state["current_party_index"])
-            current_party_id = self.placement_order[current_party_index]
+            current_party_id = context["party"]
         except Exception as e:
-            logger.error(f"Error getting current_party_id: {e}")
+            logger.error(f"Error getting current_party_id from context: {e}")
             return
-        
         # 기반 배치
-        place_base = self.model._place_party_base(current_party_id, selected_city)
-        if callable(place_base):
-            place_base(current_party_id, selected_city)
-        else:
-            logger.error("GameModel._place_party_base() is not implemented.")
-            return
-        
+        self.model._place_party_base(current_party_id, selected_city)
         # 배치 카운트 증가
-        try:
-            self.setup_state["bases_placed_count"] = int(self.setup_state["bases_placed_count"]) + 1 # type: ignore
-        except Exception as e:
-            logger.error(f"Error incrementing bases_placed_count: {e}")
-            return
-        
+        self.setup_state["bases_placed_count"] += 1
         # 다음 기반 배치 루프 호출
-        if hasattr(self, "scenario"):
+        if self.scenario is not None:
             self.start_initial_base_placement(self.scenario)
         else:
-            logger.error("self.scenario is not set in presenter.")
+            logger.error("self.scenario is None, cannot continue base placement loop.")
 
     def _handle_remove_opponent_base_choice(self, data: dict):
         """
