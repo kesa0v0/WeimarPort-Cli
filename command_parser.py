@@ -38,6 +38,6 @@ class CommandParser:
                         pass
                 return Move(player_id=player_id, action_type=ActionTypeEnum.PLAY_CARD, card_id=card_id, play_option=play_option)
         # TODO: 더 많은 명령어 파싱 추가
-        # 기본값: PASS_TURN
-        return Move(player_id=player_id, action_type=ActionTypeEnum.PASS_TURN)
+        # 기본값: NO_ACTION
+        return Move(player_id=player_id, action_type=ActionTypeEnum.NO_ACTION)
             

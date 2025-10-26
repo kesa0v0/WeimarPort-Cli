@@ -10,6 +10,7 @@ from datas import CityData
 from event_bus import EventBus
 import game_events
 from scenario_model import ScenarioModel
+from game_action import Move, ActionTypeEnum, PlayOptionEnum
 
 
 logger = logging.getLogger(__name__)
@@ -453,7 +454,6 @@ class GameModel:
         """
         현재 게임 상태에서 해당 플레이어가 할 수 있는 모든 Move 객체를 리스트로 반환
         """
-        from game_action import Move, ActionTypeEnum, PlayOptionEnum
         moves = []
         # 예시: PASS_TURN 항상 가능
         moves.append(Move(player_id=player_id, action_type=ActionTypeEnum.PASS_TURN))
@@ -475,8 +475,9 @@ class GameModel:
         """
         전달받은 Move 객체에 따라 게임 상태를 변경하고 관련 이벤트를 발행
         """
-        from game_action import ActionTypeEnum
-        if move.action_type == ActionTypeEnum.PASS_TURN:
+        if move.action_type == ActionTypeEnum.NO_ACTION:
+            logger.info(f"{move.player_id} takes no action.")
+        elif move.action_type == ActionTypeEnum.PASS_TURN:
             logger.info(f"{move.player_id} passes turn.")
             # TODO: 턴 넘기기 로직 구현
             self.bus.publish("DATA_TURN_PASSED", {"player_id": move.player_id})

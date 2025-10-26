@@ -4,7 +4,9 @@ from typing import Optional
 from pydantic import BaseModel
 from enums import PartyID
 
+
 class ActionTypeEnum(str, Enum):
+    NO_ACTION = "NO_ACTION"
     PLAY_CARD = "PLAY_CARD"
     COUP = "COUP"
     DEMONSTRATION = "DEMONSTRATION"
