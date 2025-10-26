@@ -1,3 +1,4 @@
+import asyncio
 from colorama import Fore, Style, init as init_colorama
 import logging
 
@@ -36,7 +37,7 @@ def handle_player_choice_made(data):
     pending_choice_data = None # 선택 완료 후 데이터 초기화
 
 
-if __name__ == "__main__":
+async def main():
     installer = GameManager()
     start_result = installer.start_game()
     if start_result is None:
@@ -141,3 +142,9 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             logger.info("Exiting game (Interrupt).")
             break
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logger.error(f"Unhandled exception in main: {e}")
