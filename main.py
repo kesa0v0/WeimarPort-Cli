@@ -14,28 +14,6 @@ log.init_logger()
 logger = logging.getLogger(__name__)
 
 
-def handle_request_player_choice(data):
-    options = data.get("options", [])
-    context = data.get("context", {})
-    prompt_str = context.get("prompt") or "선택하세요:"
-    while True:
-        print(f"\n{prompt_str}")
-        for i, option in enumerate(options):
-            print(f"  {i+1}. {option}")
-        choice_str = input("번호 입력> ").strip()
-        try:
-            choice_index = int(choice_str) - 1
-            if 0 <= choice_index < len(options):
-                selected_option = options[choice_index]
-                installer.bus.publish(
-                    game_events.PLAYER_CHOICE_MADE,
-                    {"selected_option": selected_option, "context": context}
-                )
-                break
-            else:
-                print(f"{Fore.RED}[ERROR]{Fore.RESET} 1부터 {len(options)} 사이의 번호를 입력하세요.")
-        except ValueError:
-            print(f"{Fore.RED}[ERROR]{Fore.RESET} 숫자를 입력하세요.")
 
 
 if __name__ == "__main__":
@@ -47,7 +25,7 @@ if __name__ == "__main__":
         
     model, view, presenter = start_result
 
-    installer.bus.subscribe(game_events.REQUEST_PLAYER_CHOICE, handle_request_player_choice)
+    # View가 직접 이벤트를 구독하므로 별도 구독 불필요
 
     while True:
         print(f"{Fore.YELLOW}{Style.BRIGHT}시나리오 선택{Style.RESET_ALL}")
