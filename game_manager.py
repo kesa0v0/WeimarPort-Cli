@@ -6,7 +6,6 @@ from presenter import GamePresenter
 from utils.data_loader import DataLoader
 from datas import GameKnowledge, PartyData
 from models import GameModel
-from cli_view import CliView
 from event_bus import EventBus
 from utils.scenario_loader import load_and_validate_scenario
 
@@ -33,14 +32,12 @@ class GameManager:
     def start_game(self):
         logger.info("Setting up game...")
         self.model = GameModel(self.bus, knowledge=self.game_knowledge)
-
-        self.view = CliView(self.bus)
         
         self.presenter = GamePresenter(self.bus, self.model)
 
         logger.info("Game setup complete.")
 
-        return self.model, self.view, self.presenter
+        return self.model, self.presenter
 
     def load_scenario(self, filepath: str):
         scenario_model = load_and_validate_scenario(filepath, self.game_knowledge)

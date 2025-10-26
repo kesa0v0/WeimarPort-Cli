@@ -7,6 +7,18 @@ from models import GameModel
 from enums import PartyID
 
 class ConsoleAgent(IPlayerAgent):
+    def localize(self, text): # Temporary localization function
+        temp_dict = {
+            PartyID.KPD: "KPD",
+            PartyID.SPD: "SPD",
+            PartyID.ZENTRUM: "Zentrum",
+            PartyID.DNVP: "DNVP",
+        }
+
+        if text in temp_dict:
+            return temp_dict[text]
+
+        return text  # Placeholder for localization logic
 
     async def get_next_command(self, game_model: GameModel) -> str:
         # main.py의 메인 루프 입력 로직을 여기로 가져옴
@@ -38,13 +50,30 @@ class ConsoleAgent(IPlayerAgent):
                 print(f"{Fore.RED}[ERROR]{Fore.RESET} 숫자를 입력하세요.")
 
     def receive_message(self, event_type: str, data: Dict[str, Any]):
-        # CliView의 on_show_message, on_show_error 등의 로직을 여기로 통합 가능
-        # 또는 CliView는 공용 로그만, Agent는 개인 메시지만 처리하도록 분리 가능
-        message = data.get("message") or data.get("error")
-        if message:
-             prefix = "[MSG]" if event_type == "UI_SHOW_MESSAGE" else "[ERR]"
-             # 특정 플레이어에게만 보여야 하는 메시지인지 확인하는 로직 추가 가능
-             print(f"{prefix} ({self.party_id}): {message}")
+        if event_type == "UI_SHOW_MESSAGE":
+            message = data.get("message")
+            if message:
+                print(f"{Fore.CYAN}[MSG] ({self.party_id}): {message}{Style.RESET_ALL}")
+        elif event_type == "UI_SHOW_ERROR":
+            error = data.get("error")
+            if error:
+                print(f"{Fore.RED}[ERR] ({self.party_id}): {error}{Style.RESET_ALL}")
         elif event_type == "UI_SHOW_STATUS":
-             # 상태 표시는 모든 플레이어에게 공통일 수 있으므로 별도 처리 또는 CliView 유지
-             pass # 예시: 상태 메세지는 무시
+            status_message = Fore.GREEN + Style.BRIGHT + "=== Game Status ===\n"
+            status_message += Fore.CYAN + f"Round: {data['round']}\n"
+            status_message += Fore.CYAN + f"Turn: {self.localize(data['turn'])}\n"
+            status_message += Fore.YELLOW + "Parties:\n"
+            for party_id, party_data in data['parties'].items():
+                status_message += Fore.YELLOW + f" - {self.localize(party_id)}: {party_data.current_vp} VP, "
+                status_message += Fore.YELLOW + f"{len(party_data.hand_timeline)} Timeline Cards, "
+                status_message += Fore.YELLOW + f"{len(party_data.hand_party)} Party Cards\n"
+                status_message += Fore.WHITE + f"  ↳ Units in Supply: {', '.join(party_data.unit_supply) if party_data.unit_supply else 'None'}\n"
+            status_message += Fore.MAGENTA + "Cities:\n"
+            for city_id, city_data in data['cities'].items():
+                bases = ', '.join([f"{self.localize(party)}:{count}" for party, count in city_data.party_bases.items() if count > 0]) or "No bases"
+                units = ', '.join(city_data.units_on_city) or "No units"
+                threats = ', '.join(city_data.threats_on_city) or "No threats"
+                city_status = f"Bases: {bases} | Units: {units} | Threats: {threats}"
+                status_message += Fore.MAGENTA + f" - {self.localize(city_id)}: {city_status}\n"
+            status_message += Fore.RED + "===================\n"
+            print(status_message)
