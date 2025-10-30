@@ -591,13 +591,9 @@ class GameModel:
         })
         # 여기서 로직 종료, 응답은 Presenter가 처리
 
-    def _resolve_place_base_choice(self, data: dict):
+    def _resolve_place_base_choice(self, player_id: PartyID, city_id: str, selected_party_to_remove: PartyID):
         """도시가 꽉 찼을 때, 플레이어의 기반 제거 선택을 처리하고 액션을 완료합니다."""
         try:
-            player_id = data["context"]["player_id"]
-            city_id = data["context"]["city_id"]
-            selected_party_to_remove = PartyID(data["selected_option"])
-
             logger.info(f"Resolving place base choice: Player {player_id} chose to remove {selected_party_to_remove}'s base in {city_id}.")
 
             # 1. 상대 기반 제거
@@ -877,7 +873,7 @@ class GameModel:
             self._request_next_agenda_choice()
 
         elif action == "resolve_place_base":
-            self._resolve_place_base_choice(choice)
+            self._resolve_place_base_choice(player_id, context["city_id"], PartyID(choice))
             
         elif action == "reaction":
             self._resolve_reaction_choice(player_id, choice, context)
