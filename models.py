@@ -543,31 +543,87 @@ class GameModel:
                 valid_cities.append(city_id)
         return valid_cities
 
-    def execute_demonstration_action(self, player_id: PartyID, city_id: str):
-        """Demonstration 액션: 기반 배치 시 자리 있으면 배치, 없으면 Presenter에 선택 요청."""
+    def _execute_place_base(self, player_id: PartyID, city_id: str):
+        """기반 배치 로직: 자리가 있으면 배치, 없으면 플레이어에게 제거할 기반 선택을 요청."""
         if city_id not in self.cities_state:
-            logger.warning(f"Invalid city_id '{city_id}' for demonstration action.")
+            logger.warning(f"Invalid city_id '{city_id}' for place base action.")
             return
+
         city_state = self.cities_state[city_id]
         city_capacity = self.knowledge.cities[city_id].max_party_bases
         current_bases = sum(city_state.party_bases.values())
+
         if current_bases < city_capacity:
+            # 자리가 있으면 즉시 배치
             success = self._place_party_base(player_id, city_id)
             if success:
-                self.bus.publish("DATA_PARTY_BASE_PLACED", {
-                    "player_id": player_id,
+                self.bus.publish(game_events.DATA_PARTY_BASE_PLACED, {
+                    "party_id": player_id,
                     "city_id": city_id
                 })
             return
-        # 자리 없으면 제거할 상대 정당 목록 추출
-        removable_parties = [party for party, count in city_state.party_bases.items() if count > 0 and party != player_id]
-        self.bus.publish("REQUEST_PLAYER_CHOICE", {
-            "action": "remove_party_base",
-            "city_id": city_id,
-            "removable_parties": removable_parties,
-            "player_id": player_id
+
+        # 자리가 없으면 제거할 상대 정당 목록을 플레이어에게 물어봄
+        removable_parties = [p for p, count in city_state.party_bases.items() if count > 0 and p != player_id]
+        if not removable_parties:
+            logger.warning(f"Cannot place base in '{city_id}': City is full and no opponent bases to remove.")
+            self.bus.publish(game_events.UI_SHOW_ERROR, {"error": f"{city_id}에 기반을 놓을 수 없습니다: 도시가 가득 찼고 제거할 상대 기반이 없습니다."})
+            return
+
+        removable_party_ids = [p.value for p in removable_parties]
+        self.bus.publish(game_events.REQUEST_PLAYER_CHOICE, {
+            "player_id": player_id,
+            "options": removable_party_ids,
+            "context": {
+                "action": "resolve_place_base",
+                "city_id": city_id,
+                "player_id": player_id,
+                "prompt": f"어떤 정당의 기반을 제거하시겠습니까? ({city_id}에 기반 배치하기 위함)"
+            }
         })
         # 여기서 로직 종료, 응답은 Presenter가 처리
+
+    def _resolve_place_base_choice(self, data: dict):
+        """도시가 꽉 찼을 때, 플레이어의 기반 제거 선택을 처리하고 액션을 완료합니다."""
+        try:
+            player_id = data["context"]["player_id"]
+            city_id = data["context"]["city_id"]
+            selected_party_to_remove = PartyID(data["selected_option"])
+
+            logger.info(f"Resolving place base choice: Player {player_id} chose to remove {selected_party_to_remove}'s base in {city_id}.")
+
+            # 1. 상대 기반 제거
+            remove_success = self._remove_party_base(selected_party_to_remove, city_id)
+            if not remove_success:
+                logger.error(f"Failed to remove base of {selected_party_to_remove} from {city_id}.")
+                self.bus.publish(game_events.UI_SHOW_ERROR, {"error": "기반 제거에 실패했습니다."})
+                return
+
+            self.bus.publish(game_events.DATA_PARTY_BASE_REMOVED, {
+                "remover_id": player_id,
+                "removed_party_id": selected_party_to_remove,
+                "city_id": city_id
+            })
+
+            # 2. 자신의 기반 배치
+            place_success = self._place_party_base(player_id, city_id)
+            if not place_success:
+                logger.error(f"Failed to place base for {player_id} in {city_id} after removal.")
+                # 이 경우는 발생하기 매우 어렵지만, 방어적으로 처리
+                self.bus.publish(game_events.UI_SHOW_ERROR, {"error": "기반 제거 후, 자신의 기반을 배치하는 데 실패했습니다."})
+                return
+            
+            self.bus.publish(game_events.DATA_PARTY_BASE_PLACED, {
+                "party_id": player_id,
+                "city_id": city_id
+            })
+            
+            self.bus.publish(game_events.UI_SHOW_STATUS, self.get_status_data())
+
+        except KeyError as e:
+            logger.error(f"_resolve_place_base_choice failed due to missing key: {e}")
+        except Exception as e:
+            logger.exception(f"An unexpected error occurred in _resolve_place_base_choice: {e}")
 
 
     def get_valid_moves(self, player_id: PartyID) -> list:
@@ -603,7 +659,10 @@ class GameModel:
             self.bus.publish("DATA_TURN_PASSED", {"player_id": move.player_id})
         elif move.action_type == ActionTypeEnum.DEMONSTRATION:
             logger.info(f"{move.player_id} attempts demonstration in {move.target_city}.")
-            self.execute_demonstration_action(move.player_id, move.target_city)
+            # 나중에 주사위 굴림 등 복잡한 로직이 추가될 수 있음
+            # 지금은 요청대로 +2 기반 설치 효과를 위해 _execute_place_base를 두 번 호출
+            self._execute_place_base(move.player_id, move.target_city)
+            # self._execute_place_base(move.player_id, move.target_city) # 두 번 호출이 필요하다면 이렇게
         elif move.action_type == ActionTypeEnum.PLAY_CARD:
             logger.info(f"{move.player_id} plays card {move.card_id} with option {move.play_option}.")
             # TODO: 카드 플레이 로직 구현

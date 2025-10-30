@@ -110,11 +110,8 @@ class GamePresenter:
             selected_city = data.get("selected_option")
             self.model.resolve_initial_base_placement(player_id, selected_city)
 
-        elif action == "remove_opponent_base":
-            # 이 부분은 필요에 따라 구체적인 Model 메소드 호출로 변경해야 합니다.
-            logger.info(f"Player chose to remove base: {data.get('selected_option')}")
-            # 예: self.model.resolve_remove_base(data)
-            pass
+        elif action == "resolve_place_base":
+            self.model._resolve_place_base_choice(data)
         else:
             logger.warning(f"PLAYER_CHOICE_MADE: 알 수 없는 action '{action}'")
 
