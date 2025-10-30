@@ -764,20 +764,19 @@ class GameModel:
         현재 게임 상태에서 해당 플레이어가 할 수 있는 모든 Move 객체를 리스트로 반환
         """
         moves = []
-        # 예시: PASS_TURN 항상 가능
-        moves.append(Move(player_id=player_id, action_type=ActionTypeEnum.PASS_TURN))
-
-        # 예시: 기반 배치 가능한 도시마다 DEMONSTRATION 액션 추가
-        valid_cities = self.get_valid_base_placement_cities(player_id)
-        for city_id in valid_cities:
-            moves.append(Move(player_id=player_id, action_type=ActionTypeEnum.DEMONSTRATION, target_city=city_id))
 
         # TODO: 카드 플레이, 쿠데타 등 다른 액션 추가
-        # 예시: 플레이어의 손에 카드가 있다면 PLAY_CARD 액션 추가
+        # 예시: 플레이어의 손에 카드가 있다면 Event 액션 추가
         party_state = self.party_states.get(player_id)
         if party_state:
             for card_id in party_state.hand_party:
-                moves.append(Move(player_id=player_id, action_type=ActionTypeEnum.PLAY_CARD, card_id=card_id, play_option=PlayOptionEnum.ACTION))
+                moves.append(Move(player_id=player_id, card_id=card_id, play_option=PlayOptionEnum.EVENT))
+
+        # 기반 배치 가능한 도시마다 DEMONSTRATION 액션 추가
+        valid_cities = self.get_valid_base_placement_cities(player_id)
+        for city_id in valid_cities:
+            moves.append(Move(player_id=player_id, play_option=PlayOptionEnum.ACTION, card_action_type=ActionTypeEnum.DEMONSTRATION, target=city_id))
+
         return moves
 
     def submit_move(self, move: Move):

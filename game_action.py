@@ -4,12 +4,6 @@ from typing import Optional
 from pydantic import BaseModel
 from enums import PartyID
 
-
-class PlayTypeEnum(str, Enum):
-    PLAY_EVENT = "PLAY_EVENT"
-    DEBATE = "DEBATE"
-    ACTION = "ACTION"
-
 class ActionTypeEnum(str, Enum):
     RESERVE = "RESERVE"
     COUP = "COUP"
@@ -27,13 +21,11 @@ class PlayOptionEnum(str, Enum):
 
 class Move(BaseModel):
     player_id: PartyID
-    action_type: PlayTypeEnum
 
     # 각 액션에 필요한 파라미터들 (옵셔널)
     card_id: Optional[str] = None
     play_option: Optional[PlayOptionEnum] = None
+    card_action_type: Optional[ActionTypeEnum] = None
 
     # 액션 공통 필드
-    target_city: Optional[str] = None
-
-    card_action_type: Optional[ActionTypeEnum] = None
+    target: Optional[str] = None
