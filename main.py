@@ -37,8 +37,6 @@ class GameApp:
             exit(1)
         self.model, self.presenter = start_result
 
-        # EventBus <-> Agent 연결
-        self.installer.bus.subscribe(game_events.REQUEST_PLAYER_CHOICE, self.handle_request_player_choice)
         self.installer.bus.subscribe(game_events.UI_SHOW_MESSAGE, lambda data: self.message_router("UI_SHOW_MESSAGE", data))
         self.installer.bus.subscribe(game_events.UI_SHOW_ERROR, lambda data: self.message_router("UI_SHOW_ERROR", data))
         self.installer.bus.subscribe(game_events.UI_SHOW_STATUS, lambda data: self.message_router("UI_SHOW_STATUS", data))
@@ -53,27 +51,6 @@ class GameApp:
             for agent in self.agents.values():
                 agent.receive_message(event_type, data)
 
-    def handle_request_player_choice(self, data):
-        context = data.get("context", {})
-        options = data.get("options", [])
-        party_id = context.get("party")
-        if party_id is None:
-            self.logger.error("REQUEST_PLAYER_CHOICE: party_id가 없습니다.")
-            return
-        agent = self.agents.get(party_id)
-        if agent is None:
-            self.logger.error(f"REQUEST_PLAYER_CHOICE: agent for {party_id} not found.")
-            return
-
-        async def choice_coroutine():
-            selected_option = await agent.get_choice(options, context)
-            self.presenter.bus.publish(game_events.PLAYER_CHOICE_MADE, {
-                "context": context,
-                "selected_option": selected_option
-            })
-
-        asyncio.create_task(choice_coroutine())
-
     async def run(self):
         # 시나리오 선택
         while True:
@@ -87,6 +64,12 @@ class GameApp:
                 break
             else:
                 print(f"{Fore.RED}[ERROR]{Fore.RESET} 유효한 시나리오 번호를 입력하세요.")
+
+        # 초기 설정(기반 배치 등)이 완료될 때까지 대기합니다.
+        self.logger.info("Waiting for initial setup to complete...")
+        while self.model.setup_phase_active:
+            await asyncio.sleep(0.1)
+        self.logger.info("Initial setup complete.")
 
         self.logger.info("Entering main game loop...")
         while True:

@@ -87,6 +87,14 @@ class GameModel:
         self.dr_box_threats: Set[str] = set()
         self.dissolved_units: Set[str] = set()
 
+        # --- Setup Phase State ---
+        self.setup_phase_active: bool = False
+        self.placement_order: List[PartyID] = []
+        self.setup_current_party_index: int = 0
+        self.setup_bases_placed_count: int = 0
+        self.scenario_data: Optional[ScenarioModel] = None
+
+
     def initialize_game_objects(self):
         if self.knowledge:
             # Initialize Party States
@@ -219,10 +227,122 @@ class GameModel:
             logger.info("Game setup from scenario complete.")
             self.bus.publish(game_events.UI_SHOW_STATUS, self.get_status_data())
 
+            # --- 7. 초기 기반 배치 단계 시작 ---
+            self.scenario_data = scenario
+            self.start_initial_setup()
+
             return True
         except Exception as e:
             logger.exception(f"CRITICAL ERROR during scenario setup: {e}")
             raise RuntimeError(f"Failed to setup game from scenario: {e}")
+
+
+    def start_initial_setup(self):
+        """
+        초기 설정(기반 배치 등) 단계를 시작합니다.
+        """
+        if not self.scenario_data:
+            logger.error("Cannot start initial setup without scenario data.")
+            return
+
+        # 여기서 플레이 순서 정의 (나중에 시나리오에서 읽어올 수도 있음)
+        self.placement_order = [
+            PartyID.SPD,
+            PartyID.ZENTRUM,
+            PartyID.KPD,
+            PartyID.DNVP
+        ]
+
+        self.setup_phase_active = True
+        self.setup_current_party_index = 0
+        self.setup_bases_placed_count = 0
+
+        logger.info("Initial base placement phase started.")
+        self._request_next_setup_action() # 첫 액션 요청
+
+    def _request_next_setup_action(self):
+        """
+        설정 단계의 다음 액션을 요청합니다. (기반 배치 요청 등)
+        """
+        if not self.setup_phase_active:
+            return
+
+        # 모든 정당의 배치가 끝났는지 확인
+        if self.setup_current_party_index >= len(self.placement_order):
+            self.setup_phase_active = False
+            logger.info("Initial base placement complete.")
+            self.bus.publish(game_events.SETUP_PHASE_COMPLETE, {})
+            # TODO: 첫 턴 시작 로직 호출
+            # self.start_first_turn()
+            return
+
+        current_party_id = self.placement_order[self.setup_current_party_index]
+        try:
+            bases_to_place = self.scenario_data.initial_party_setup[current_party_id].city_bases
+        except (KeyError, AttributeError):
+            logger.error(f"Invalid bases_to_place info for party {current_party_id}. Skipping party.")
+            self.setup_current_party_index += 1
+            self.setup_bases_placed_count = 0
+            self._request_next_setup_action() # 다음 정당으로 넘어감
+            return
+
+        # 해당 정당이 모든 기반을 배치했는지 확인
+        if self.setup_bases_placed_count >= bases_to_place:
+            # 다음 정당으로 이동
+            self.setup_current_party_index += 1
+            self.setup_bases_placed_count = 0
+            self._request_next_setup_action() # 다음 액션 요청
+            return
+
+        # 기반을 배치해야 함 -> 플레이어에게 선택 요청
+        valid_cities = self.get_valid_base_placement_cities(current_party_id)
+        if not valid_cities:
+            logger.warning(f"No valid cities for {current_party_id} to place base. Skipping party.")
+            self.setup_current_party_index += 1
+            self.setup_bases_placed_count = 0
+            self._request_next_setup_action()
+            return
+
+        # Presenter에게 플레이어 선택을 요청하는 이벤트 발행
+        self.bus.publish(game_events.REQUEST_PLAYER_CHOICE, {
+            "player_id": current_party_id,
+            "options": valid_cities,
+            "context": {
+                "action": "initial_base_placement",
+                "party": current_party_id,
+                "remaining": bases_to_place - self.setup_bases_placed_count,
+                "bases_to_place": bases_to_place,
+                "prompt": f"기반을 배치할 도시를 선택하세요 ({self.setup_bases_placed_count + 1}/{bases_to_place})"
+            }
+        })
+
+    def resolve_initial_base_placement(self, party_id: PartyID, selected_city: str):
+        """
+        플레이어의 초기 기반 배치 선택을 처리합니다.
+        """
+        if not self.setup_phase_active or self.placement_order[self.setup_current_party_index] != party_id:
+            logger.warning(f"Received unexpected base placement choice from {party_id}.")
+            return
+
+        valid_cities = self.get_valid_base_placement_cities(party_id)
+        if selected_city in valid_cities:
+            success = self._place_party_base(party_id, selected_city)
+            if success:
+                self.setup_bases_placed_count += 1
+                self.bus.publish(game_events.DATA_PARTY_BASE_PLACED, {
+                    "party_id": party_id,
+                    "city_id": selected_city,
+                    "placed_count": self.setup_bases_placed_count
+                })
+            else:
+                logger.error("Internal error: Failed to place base in a city that was considered valid.")
+                # 오류 상황, 재요청 또는 다른 처리 필요
+        else:
+            logger.warning(f"Player {party_id} chose an invalid city '{selected_city}'.")
+            # 잘못된 선택, 재요청 또는 다른 처리 필요
+
+        # 다음 액션 요청 (성공/실패와 무관하게 다음 상태로 진행)
+        self._request_next_setup_action()
 
 
     def _get_unit_instance(self, instance_id: str) -> Optional[UnitOnBoard]:
