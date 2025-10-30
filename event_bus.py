@@ -1,5 +1,6 @@
 import logging
-
+import asyncio
+import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -16,5 +17,8 @@ class EventBus:
     def publish(self, event_type, data):
         if event_type in EventBus.listeners:
             for listener in EventBus.listeners[event_type]:
-                listener(data)
+                if inspect.iscoroutinefunction(listener):
+                    asyncio.create_task(listener(data))
+                else:
+                    listener(data)
             logger.debug(f"Event '{event_type}' published to {len(EventBus.listeners[event_type])} listeners")

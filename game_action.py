@@ -5,13 +5,20 @@ from pydantic import BaseModel
 from enums import PartyID
 
 
+class PlayTypeEnum(str, Enum):
+    PLAY_EVENT = "PLAY_EVENT"
+    DEBATE = "DEBATE"
+    ACTION = "ACTION"
+
 class ActionTypeEnum(str, Enum):
-    NO_ACTION = "NO_ACTION"
-    PLAY_CARD = "PLAY_CARD"
+    RESERVE = "RESERVE"
     COUP = "COUP"
+    COUNTER_COUP = "COUNTER_COUP"
     DEMONSTRATION = "DEMONSTRATION"
-    PASS_TURN = "PASS_TURN"
-    # ... 다른 액션 타입 ...
+    FIGHT = "FIGHT"
+    MOBILIZE = "MOBILIZE"
+    TAKE_CONTROL = "TAKE_CONTROL"
+    FOREIGN_AFFAIRS = "FOREIGN_AFFAIRS"
 
 class PlayOptionEnum(str, Enum):
     EVENT = "EVENT"
@@ -20,12 +27,13 @@ class PlayOptionEnum(str, Enum):
 
 class Move(BaseModel):
     player_id: PartyID
-    action_type: ActionTypeEnum
+    action_type: PlayTypeEnum
 
     # 각 액션에 필요한 파라미터들 (옵셔널)
     card_id: Optional[str] = None
     play_option: Optional[PlayOptionEnum] = None
-    target_city: Optional[str] = None
-    # ... 다른 파라미터 (예: target_unit_id, choice_made 등) ...
 
-    # 유효성 검사기 추가 가능 (예: COUP 액션은 target_city가 필수)
+    # 액션 공통 필드
+    target_city: Optional[str] = None
+
+    card_action_type: Optional[ActionTypeEnum] = None

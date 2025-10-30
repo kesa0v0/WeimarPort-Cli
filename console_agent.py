@@ -23,11 +23,18 @@ class ConsoleAgent(IPlayerAgent):
 
     async def get_next_move(self, game_model: GameModel) -> 'Move':
            from command_parser import CommandParser
-           prompt = f"{Fore.GREEN}{Style.BRIGHT}[{self.localize(self.party_id)}] 명령 입력> {Style.RESET_ALL}"
-           cmd_str = await asyncio.to_thread(input, prompt)
            parser = CommandParser(None)  # presenter는 필요 없으므로 None
-           move = parser.parse_command_to_move(cmd_str.strip(), self.party_id)
-           return move
+
+           while True:
+               prompt = f"{Fore.GREEN}{Style.BRIGHT}[{self.localize(self.party_id)}] 명령 입력> {Style.RESET_ALL}"
+               cmd_str = await asyncio.to_thread(input, prompt)
+               
+               move = parser.parse_command_to_move(cmd_str.strip(), self.party_id)
+               
+               if move:
+                   return move
+               else:
+                   print(f"{Fore.RED}[ERROR]{Style.RESET_ALL} 알 수 없는 명령입니다. 다시 입력해주세요.")
 
     async def get_choice(self, options: List[Any], context: Dict[str, Any]) -> Any:
             # main.py의 handle_request_player_choice 로직을 여기로 가져옴

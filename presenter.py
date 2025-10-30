@@ -27,6 +27,9 @@ class GamePresenter:
         self.bus = bus
         self.model = model
         self.agents = agents
+
+        
+        self.bus.subscribe(game_events.REQUEST_PLAYER_MOVE, self.handle_request_player_move)
         # PLAYER_CHOICE_MADE 이벤트 구독
         self.bus.subscribe(game_events.PLAYER_CHOICE_MADE, self.handle_player_choice_made)
         # REQUEST_PLAYER_CHOICE 이벤트 구독 (Model -> Presenter)
@@ -35,16 +38,6 @@ class GamePresenter:
         self.bus.subscribe(game_events.DATA_PARTY_BASE_PLACED, self.handle_party_base_placed)
         self.bus.subscribe(game_events.SETUP_PHASE_COMPLETE, self.handle_setup_phase_complete)
 
-    def handle_move(self, move: Move):
-        """
-        main.py 등에서 전달받은 Move 객체를 실행합니다.
-        """
-        try:
-            result = self.model.execute_move(move)
-            self.bus.publish(game_events.UI_SHOW_MESSAGE, {"message": f"Action executed: {move.action_type}"})
-            # 필요시 result에 따라 추가 이벤트 발행 가능
-        except Exception as e:
-            self.bus.publish(game_events.UI_SHOW_ERROR, {"error": f"Move 실행 중 오류: {e}"})
 
     async def handle_load_scenario(self, scenario: ScenarioModel):
         """
@@ -59,6 +52,31 @@ class GamePresenter:
             error_message = f"Failed to setup game from scenario: {e}"
             logger.exception(error_message)
             self.bus.publish(game_events.UI_SHOW_ERROR, {"error": error_message})
+
+
+    async def handle_request_player_move(self, data: dict):
+        """GameModel이 Agent에게 get_next_move를 요청함"""
+        player_id = data.get("player_id")
+        agent = self.agents.get(player_id)
+        if not agent:
+            return
+
+        # 1. Agent에게 'get_next_move' 호출 (ConsoleAgent는 명령어 입력 대기)
+        move = await agent.get_next_move(self.model)
+        
+        # 2. Agent가 만든 'Move' 객체를 Model에 제출
+        self.model.submit_move(move)
+
+    def handle_move(self, move: Move):
+        """
+        main.py 등에서 전달받은 Move 객체를 실행합니다.
+        """
+        try:
+            result = self.model.execute_move(move)
+            self.bus.publish(game_events.UI_SHOW_MESSAGE, {"message": f"Action executed: {move.action_type}"})
+            # 필요시 result에 따라 추가 이벤트 발행 가능
+        except Exception as e:
+            self.bus.publish(game_events.UI_SHOW_ERROR, {"error": f"Move 실행 중 오류: {e}"})
 
     def handle_request_player_choice(self, data: dict):
         """
@@ -86,34 +104,24 @@ class GamePresenter:
                     "context": context
                 })
             except Exception as e:
-                logger.error(f"Error getting choice from agent {player_id}: {e}")
-                self.bus.publish(game_events.UI_SHOW_ERROR, {"error": f"에이전트 선택 중 오류 발생: {e}"})
+                logger.error(f"Error getting choice from agent {player_id}: {e.with_traceback()}")
+                self.bus.publish(game_events.UI_SHOW_ERROR, {"error": f"에이전트 선택 중 오류 발생: {e.with_traceback()}"})
         
         # 비동기 작업을 이벤트 루프에서 실행하도록 스케줄링
         asyncio.create_task(do_choice())
 
 
     def handle_player_choice_made(self, data: dict):
-        """
-        PLAYER_CHOICE_MADE 이벤트 핸들러. Agent의 선택을 Model에 전달합니다.
-        """
+        """PLAYER_CHOICE_MADE 이벤트 핸들러. Model에 선택 전달."""
         context = data.get("context", {})
-        action = context.get("action")
+        selected_option = data.get("selected_option")
+        player_id = context.get("party")
 
-        if not action:
-            logger.error("PLAYER_CHOICE_MADE: context에 action이 없습니다.")
+        if not player_id:
+            logger.error("PLAYER_CHOICE_MADE: context에 party가 없습니다.")
             return
 
-        # 액션별 분기 처리
-        if action == "initial_base_placement":
-            player_id = data.get("player_id")
-            selected_city = data.get("selected_option")
-            self.model.resolve_initial_base_placement(player_id, selected_city)
-
-        elif action == "resolve_place_base":
-            self.model._resolve_place_base_choice(data)
-        else:
-            logger.warning(f"PLAYER_CHOICE_MADE: 알 수 없는 action '{action}'")
+        self.model.submit_choice(player_id, selected_option, context)
 
     def handle_party_base_placed(self, data: dict):
         """기반 배치 결과를 UI에 표시합니다."""

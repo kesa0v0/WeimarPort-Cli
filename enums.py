@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 
 class Faction(str, Enum):
     """
@@ -18,3 +18,16 @@ class PartyID(str, Enum):
     SPD = "SPD"
     DNVP = "DNVP"
     ZENTRUM = "ZENTRUM"
+
+class GamePhase(Enum):
+    SETUP = auto()
+    AGENDA_PHASE_START = auto()
+    AGENDA_PHASE_AWAIT_CHOICES = auto()
+    IMPULSE_PHASE_START = auto()
+    IMPULSE_PHASE_AWAIT_MOVE = auto()
+    IMPULSE_PHASE_AWAIT_REACTION = auto()
+    REACTION_WINDOW_GATHERING = auto() # 리액션 접수 중
+    REACTION_WINDOW_AWAIT_CHOICE = auto() # 특정 플레이어의 응답 대기 중
+    REACTION_CHAIN_RESOLVING = auto() # 스택 처리 중
+    POLITICS_PHASE = auto()
+    GAME_OVER = auto()

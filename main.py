@@ -4,7 +4,7 @@ from colorama import Fore, Style, init as init_colorama
 import logging
 from ai_player import RandomAIAgent
 from console_agent import ConsoleAgent
-from enums import PartyID
+from enums import GamePhase, PartyID
 import game_events
 import log
 from command_parser import CommandParser
@@ -67,29 +67,18 @@ class GameApp:
 
         # 초기 설정(기반 배치 등)이 완료될 때까지 대기합니다.
         self.logger.info("Waiting for initial setup to complete...")
-        while self.model.setup_phase_active:
+        while self.model.phase == GamePhase.SETUP:
             await asyncio.sleep(0.1)
         self.logger.info("Initial setup complete.")
 
         self.logger.info("Entering main game loop...")
-        while True:
+        while self.model.phase != GamePhase.GAME_OVER:
             try:
-                current_player_id = self.model.get_current_player()
-                if not current_player_id:
-                    self.logger.warning("Waiting for game to start or player to be set...")
-                    await asyncio.sleep(0.1)
-                    continue
-
-                current_agent = self.agents[current_player_id]
-                move = await current_agent.get_next_move(self.model)
-
-                if hasattr(move, "action_type") and str(move.action_type).lower() in ("quit", "exit"):
-                    self.logger.info("Exit command received.")
-                    break
-
-                self.presenter.handle_move(move)
-
-                # TODO: 게임 종료 조건 확인 로직 추가
+                # 3. GameModel이 현재 상태에 따라 알아서 행동함
+                await self.model.advance_game_state()
+                
+                # 4. 다른 비동기 작업(예: Agent 응답)을 위해 잠시 대기
+                await asyncio.sleep(0.01) 
 
             except Exception as e:
                 self.logger.exception(f"Error in main loop: {e}")

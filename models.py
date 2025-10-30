@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Set
 import uuid
 
 from datas import GameKnowledge, ThreatData, UnitData
-from enums import PartyID
+from enums import GamePhase, PartyID
 from datas import CityData
 from event_bus import EventBus
 import game_events
@@ -71,7 +71,8 @@ class GameModel:
         self.knowledge = knowledge
 
         self.round = 0
-        self.turn: Optional[PartyID] = None
+        self.phase = GamePhase.SETUP
+        self.current_turn_order: List[PartyID] = []
 
         self.parliament_state = ParliamentState()
         self.governing_parties: set[PartyID] = set()
@@ -88,11 +89,20 @@ class GameModel:
         self.dissolved_units: Set[str] = set()
 
         # --- Setup Phase State ---
-        self.setup_phase_active: bool = False
         self.placement_order: List[PartyID] = []
         self.setup_current_party_index: int = 0
         self.setup_bases_placed_count: int = 0
         self.scenario_data: Optional[ScenarioModel] = None
+
+        # --- Agenda Phase State ---
+        self._pending_agenda_choices = {} # 아젠다 단계에서 선택을 기록
+        self.agenda_choice_player_index = 0
+
+
+        # --- Reaction State ---
+        self._pending_move: Optional[Move] = None # 실행 보류 중인 원본 Move
+        self._reaction_chain: List[Any] = [] # "Reaction Stack" (Move 또는 Reaction 객체)
+        self._reaction_ask_index: int = 0 # 리액션을 물어볼 다음 플레이어 인덱스
 
 
     def initialize_game_objects(self):
@@ -104,7 +114,7 @@ class GameModel:
             if self.knowledge.cities:
                 self.cities_state = {city_id: CityState(city_data) for city_id, city_data in self.knowledge.cities.items()}
 
-            # ⭐️ Initialize Threat Pool
+            # Initialize Threat Pool
             if self.knowledge.threat:
                 logger.debug("Initializing threat pool...")
                 for template_id, threat_data in self.knowledge.threat.items():
@@ -116,7 +126,7 @@ class GameModel:
                         self._threat_pool_by_type[template_id].append(instance_id)
                 logger.info(f"Threat pool initialized with {len(self.all_threats)} instances.")
 
-            # ⭐️ Initialize Unit Pool
+            # Initialize Unit Pool
             if self.knowledge.units:
                 logger.debug("Initializing unit pool...")
                 for template_id, unit_data in self.knowledge.units.items():
@@ -129,12 +139,12 @@ class GameModel:
                 logger.info(f"Unit pool initialized with {len(self.all_units)} instances.")
 
     def get_current_player(self) -> Optional[PartyID]:
-        return self.turn
+        return self.current_turn_order[self.current_player_index]
 
     def get_status_data(self) -> dict[str, Any]:
         status = {
             "round": self.round,
-            "turn": self.turn,
+            "turn": self.current_turn_order[self.current_player_index],
             "parties": self.party_states,
             "cities": self.cities_state
         }
@@ -220,8 +230,9 @@ class GameModel:
                 self.parliament_state.seats[party_id] = setup_details.parliament_seats
 
             # --- 5. 초기 턴 설정 ---
-            # ⭐️ 시나리오에 정의되어 있지 않다면 기본값 사용
-            self.turn = PartyID.SPD # 예시 기본값
+            # 시나리오에 정의되어 있지 않다면 기본값 사용
+            self.current_turn_order = [PartyID.SPD, PartyID.ZENTRUM, PartyID.KPD, PartyID.DNVP]
+            self.current_player_index = 0
 
             # --- 6. 완료 알림 ---
             logger.info("Game setup from scenario complete.")
@@ -253,7 +264,6 @@ class GameModel:
             PartyID.DNVP
         ]
 
-        self.setup_phase_active = True
         self.setup_current_party_index = 0
         self.setup_bases_placed_count = 0
 
@@ -264,16 +274,14 @@ class GameModel:
         """
         설정 단계의 다음 액션을 요청합니다. (기반 배치 요청 등)
         """
-        if not self.setup_phase_active:
+        if self.phase != GamePhase.SETUP:
             return
 
         # 모든 정당의 배치가 끝났는지 확인
         if self.setup_current_party_index >= len(self.placement_order):
-            self.setup_phase_active = False
+            self.phase = GamePhase.AGENDA_PHASE_START
             logger.info("Initial base placement complete.")
             self.bus.publish(game_events.SETUP_PHASE_COMPLETE, {})
-            # TODO: 첫 턴 시작 로직 호출
-            # self.start_first_turn()
             return
 
         current_party_id = self.placement_order[self.setup_current_party_index]
@@ -320,7 +328,7 @@ class GameModel:
         """
         플레이어의 초기 기반 배치 선택을 처리합니다.
         """
-        if not self.setup_phase_active or self.placement_order[self.setup_current_party_index] != party_id:
+        if self.phase != GamePhase.SETUP or self.placement_order[self.setup_current_party_index] != party_id:
             logger.warning(f"Received unexpected base placement choice from {party_id}.")
             return
 
@@ -626,6 +634,131 @@ class GameModel:
             logger.exception(f"An unexpected error occurred in _resolve_place_base_choice: {e}")
 
 
+    def _resolve_agenda_choices(self):
+        logger.info("Resolving agenda choices for all players.")
+        for party_id, selected_agenda in self._pending_agenda_choices.items():
+            logger.debug(f"Party {party_id} selected agenda: {selected_agenda}")
+            # 아젠다 카드 적용 로직 구현 필요
+            # 예: self.party_states[party_id].agenda = selected_agenda
+
+    def _request_next_agenda_choice(self):
+        if self.agenda_choice_player_index < len(self.current_turn_order):
+            party_id = self.current_turn_order[self.agenda_choice_player_index]
+            agenda_options = ["Agenda1", "Agenda2", "Agenda3", "Agenda4"]
+            context = {
+                "action": "agenda_selection",
+                "party": party_id,
+                "prompt": "이번 라운드의 아젠다 카드를 선택하세요."
+            }
+            self.bus.publish(game_events.REQUEST_PLAYER_CHOICE, {
+                "player_id": party_id,
+                "options": agenda_options,
+                "context": context
+            })
+        else:
+            # 모든 플레이어가 선택 완료
+            self._resolve_agenda_choices()
+            self.phase = GamePhase.IMPULSE_PHASE_START
+            self.current_player_index = 0
+
+
+    async def advance_game_state(self):
+        match self.phase:
+            case GamePhase.SETUP:
+                raise Exception("Game Started Not Setuped Properly.")
+
+            case GamePhase.AGENDA_PHASE_START:
+                # 1. 아젠다 선택 단계 시작
+                self._pending_agenda_choices = {}
+                self.agenda_choice_player_index = 0
+                self.phase = GamePhase.AGENDA_PHASE_AWAIT_CHOICES
+                self._request_next_agenda_choice()
+
+            case GamePhase.AGENDA_PHASE_AWAIT_CHOICES:
+                # Agent가 'submit_choice'를 호출할 때까지 대기
+                pass
+                    
+            case GamePhase.IMPULSE_PHASE_START:
+                # 1. 이번 턴 플레이어 결정
+                player_id = self.current_turn_order[self.current_player_index]
+                self.turn = player_id # 현재 턴 플레이어 설정
+                
+                # 2. 상태 변경: 이제 이 플레이어의 'Move'를 기다림
+                self.phase = GamePhase.IMPULSE_PHASE_AWAIT_MOVE
+                
+                # 3. Presenter/Agent에게 'Move'를 요청하라고 알림
+                # 'get_next_move'를 호출하라는 신호!
+                self.bus.publish("REQUEST_PLAYER_MOVE", {"player_id": player_id})
+
+            case GamePhase.IMPULSE_PHASE_AWAIT_MOVE:
+                # 1. 플레이어가 'Move'를 제출할 때까지 아무것도 하지 않고 대기
+                # 2. 'Move'가 제출되면 'submit_move' 핸들러가 상태를 변경할 것임
+                pass
+
+            case GamePhase.REACTION_WINDOW_GATHERING:
+                # 1. 한 바퀴 다 돌았는지 확인 (턴 플레이어에게 돌아왔나?)
+                if self._reaction_ask_index == self.current_player_index:
+                    logger.debug("Reaction window closed. All players passed.")
+                    # 2. 모두 "Pass"함. 스택 실행 단계로 이동
+                    self.phase = GamePhase.REACTION_CHAIN_RESOLVING
+                    return # 👈 즉시 다음 루프로
+
+                # 3. 현재 물어볼 플레이어
+                player_to_ask = self.current_turn_order[self._reaction_ask_index]
+                
+                # 4. 이 플레이어가 현재 스택의 '마지막' 아이템에 반응할 수 있나?
+                # 룰북: "react to... action or reaction"
+                last_event_on_stack = self._reaction_chain[-1]
+                valid_reactions = self._get_valid_reactions_for_player(player_to_ask, last_event_on_stack)
+                
+                if not valid_reactions:
+                    # 5. 반응할 수단이 없음. 다음 플레이어로
+                    self._reaction_ask_index = (self._reaction_ask_index + 1) % len(self.current_turn_order)
+                    # (다음 advance_game_state 루프에서 계속)
+                else:
+                    # 6. 반응할 수단이 있음! "Pass" 옵션 추가
+                    valid_reactions.append("PASS")
+                    
+                    # 7. 응답 대기 상태로 변경
+                    self.phase = GamePhase.REACTION_WINDOW_AWAIT_CHOICE
+                    
+                    # 8. Agent에게 'get_choice' 요청
+                    self.bus.publish(game_events.REQUEST_PLAYER_CHOICE, {
+                        "player_id": player_to_ask,
+                        "options": valid_reactions, # [ "Street Fight (Board)", "Otto Wels (Card)", "PASS" ]
+                        "context": {
+                            "action": "reaction",
+                            "party": player_to_ask,
+                            "target_event": str(last_event_on_stack),
+                            "prompt": f"'{last_event_on_stack}'에 반응하시겠습니까?"
+                        }
+                    })
+
+            case GamePhase.REACTION_WINDOW_AWAIT_CHOICE:
+                # Agent가 'submit_choice'를 호출할 때까지 대기
+                pass
+
+            case GamePhase.REACTION_CHAIN_RESOLVING:
+                logger.info(f"Resolving reaction chain (LIFO). Stack size: {len(self._reaction_chain)}")
+                
+                # 1. 스택이 빌 때까지 역순으로 실행
+                while self._reaction_chain:
+                    item_to_resolve = self._reaction_chain.pop() # 맨 위(마지막) 아이템
+                    
+                    if self._is_politician_card(item_to_resolve):
+                        self._resolve_politician_card(item_to_resolve)
+                    
+                    elif self._is_board_reaction(item_to_resolve):
+                        self._resolve_board_reaction(item_to_resolve)
+
+                    elif isinstance(item_to_resolve, Move):
+                        self._execute_action(item_to_resolve) # 최종 실행
+
+                # 4. 스택 해결 완료. 다음 턴으로.
+                self._pending_move = None
+                self._advance_to_next_impulse_turn()
+
+
     def get_valid_moves(self, player_id: PartyID) -> list:
         """
         현재 게임 상태에서 해당 플레이어가 할 수 있는 모든 Move 객체를 리스트로 반환
@@ -647,7 +780,38 @@ class GameModel:
                 moves.append(Move(player_id=player_id, action_type=ActionTypeEnum.PLAY_CARD, card_id=card_id, play_option=PlayOptionEnum.ACTION))
         return moves
 
-    def execute_move(self, move):
+    def submit_move(self, move: Move):
+        """Presenter가 Agent로부터 받은 Move를 실행"""
+        
+        # 0. 현재 턴 플레이어의 Move가 맞는지 확인
+        if move.player_id != self.turn or self.phase != GamePhase.IMPULSE_PHASE_AWAIT_MOVE:
+            self.bus.publish(game_events.UI_SHOW_ERROR, {"error": "지금은 당신의 턴이 아닙니다."})
+            # 다시 요청
+            self.bus.publish("REQUEST_PLAYER_MOVE", {"player_id": self.turn})
+            return
+
+        # 1. Reaction이 가능한 Move인지 확인
+        if move.card_action_type in (ActionTypeEnum.DEMONSTRATION, ActionTypeEnum.COUP, ActionTypeEnum.COUNTER_COUP, ActionTypeEnum.FIGHT):
+            
+            # 2. Move를 "보류"하고 스택(체인)의 맨 밑에 둠
+            self._pending_move = move
+            self._reaction_chain = [move] # 원본 행동이 스택의 0번
+            
+            # 3. 현재 플레이어의 '다음' 사람부터 물어보기 시작
+            self.phase = GamePhase.REACTION_WINDOW_GATHERING
+            self.current_player_index = self.current_player_index # 턴 플레이어 인덱스
+            self._reaction_ask_index = (self.current_player_index + 1) % len(self.current_turn_order)
+
+            logger.info(f"Action {move} announced. Opening reaction window starting from {self.current_turn_order[self._reaction_ask_index]}.")
+            
+            # (advance_game_state가 이어서 처리)
+        
+        else:
+            # 4. 리액션 불가능한 행동 (예: Pass, Debate)은 즉시 실행
+            self._execute_action(move) # 즉시 실행
+            self._advance_to_next_impulse_turn()
+
+    def _execute_move(self, move):
         """
         전달받은 Move 객체에 따라 게임 상태를 변경하고 관련 이벤트를 발행
         """
@@ -670,3 +834,61 @@ class GameModel:
         # TODO: COUP, 기타 액션 등 추가
         else:
             logger.warning(f"Unknown action type: {move.action_type}")
+
+    def _resolve_reaction_choice(self, player_id: PartyID, choice: Any, context: dict):
+        if choice == "PASS":
+            # 1. "Pass" 선택. 다음 사람에게 물어봄
+            self._reaction_ask_index = (self._reaction_ask_index + 1) % len(self.current_turn_order)
+            self.phase = GamePhase.REACTION_WINDOW_GATHERING
+            
+        else:
+            # 2. "React" 선택! (예: "DNVP의 Street Fight")
+            logger.info(f"{player_id} reacts with {choice}.")
+            self._reaction_chain.append(choice) # 스택(체인)에 추가!
+            
+            # 3. 룰북: "Only 1 reaction is allowed per trigger"
+            # (이것은 "Party Board" 리액션에만 해당)
+            # (Politician Card는 리액션에 리액션 가능)
+            
+            if self._is_board_reaction(choice):
+                # 4a. 보드 리액션임. 다른 사람은 더 이상 '보드 리액션' 불가.
+                # 하지만 "정치가 카드"는 이 리액션에 반응할 수 있음.
+                # 따라서 스택이 쌓였으므로, '다음' 사람부터 다시 물어봄
+                self._reaction_ask_index = (self._reaction_ask_index + 1) % len(self.current_turn_order)
+                self.phase = GamePhase.REACTION_WINDOW_GATHERING # 루프 리셋
+
+            elif self._is_politician_card(choice):
+                # 4b. 정치가 카드임. 이 카드에 또 반응할 수 있음.
+                # '다음' 사람부터 다시 물어봄
+                self._reaction_ask_index = (self._reaction_ask_index + 1) % len(self.current_turn_order)
+                self.phase = GamePhase.REACTION_WINDOW_GATHERING # 루프 리셋
+
+    def submit_choice(self, player_id: PartyID, choice: Any, context: dict):
+        """Presenter가 Agent로부터 받은 Choice를 처리"""
+        
+        action = context.get("action")
+        
+
+        if action == "initial_base_placement":
+            self.resolve_initial_base_placement(player_id, choice)
+
+        elif action == "agenda_selection":
+            self._pending_agenda_choices[player_id] = choice
+            self.agenda_choice_player_index += 1
+            self._request_next_agenda_choice()
+
+        elif action == "resolve_place_base":
+            self._resolve_place_base_choice(choice)
+            
+        elif action == "reaction":
+            self._resolve_reaction_choice(player_id, choice, context)
+
+    def _advance_to_next_impulse_turn(self):
+            # TODO: 모든 플레이어가 카드를 다 썼는지 확인 (Impulse Phase 종료)
+            # if self._is_impulse_phase_over():
+            #    self.phase = GamePhase.POLITICS_PHASE
+            # else:
+            
+            # 아니면 다음 플레이어로 인덱스 이동
+            self.current_player_index = (self.current_player_index + 1) % len(self.current_turn_order)
+            self.phase = GamePhase.IMPULSE_PHASE_START
